@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>فرم ثبت نام</title>
+  <style>
+    :root{
+      --bg:#6996ae;
+      --card:#ffffff;
+      --accent:#2f6f85;
+      --muted:#6b7f85;
+      --radius:12px;
+    }
+    html,body{
+      height:100%;
+      margin:0;
+      font-family: "Tahoma", "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, var(--bg) 0%, #5b8da0 100%);
+      -webkit-font-smoothing:antialiased;
+    }
+    .wrap{
+      min-height:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:30px;
+    }
+    .card{
+      background:var(--card);
+      width:100%;
+      max-width:520px;
+      border-radius:var(--radius);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      padding:28px;
+      text-align:right;
+      direction:rtl;
+    }
+    h1{
+      margin:0 0 14px 0;
+      color:var(--accent);
+      font-size:22px;
+    }
+    p.lead{
+      margin:0 0 20px 0;
+      color:var(--muted);
+      font-size:14px;
+    }
+    form .row{
+      display:flex;
+      gap:12px;
+      margin-bottom:12px;
+    }
+    /* Responsive: stack on small screens */
+    @media (max-width:520px){
+      .row{flex-direction:column;}
+    }
+    label{
+      display:block;
+      font-size:13px;
+      margin-bottom:6px;
+      color:#284b56;
+    }
+    input[type="text"],
+    input[type="password"],
+    input[type="tel"]{
+      width:100%;
+      padding:10px 12px;
+      border:1px solid #d6e4ea;
+      border-radius:8px;
+      font-size:14px;
+      outline:none;
+      box-sizing:border-box;
+      transition: box-shadow .15s, border-color .15s;
+    }
+    input:focus{
+      border-color:var(--accent);
+      box-shadow:0 4px 12px rgba(47,111,133,0.12);
+    }
+    .note{
+      font-size:12px;
+      color:#647c82;
+      margin-bottom:10px;
+    }
+    .actions{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      margin-top:16px;
+    }
+    button{
+      background:var(--accent);
+      color:white;
+      border:0;
+      padding:10px 16px;
+      border-radius:10px;
+      cursor:pointer;
+      font-size:14px;
+    }
+    button.secondary{
+      background:transparent;
+      color:var(--accent);
+      border:1px solid rgba(47,111,133,0.15);
+    }
+    .error{
+      color:#b22222;
+      font-size:13px;
+      margin-top:8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" role="main">
+      <h1>فرم ثبت نام</h1>
+      <p class="lead">لطفاً همهٔ فیلدها را تکمیل کنید. کد ملی باید دقیقاً ۱۰ رقم باشد.</p>
+
+      <!-- در اینجا action به insert.php اشاره می‌کند -->
+      <form id="regForm" action="insert.php" method="POST" novalidate>
+        <div class="row">
+          <div style="flex:1">
+            <label for="first_name">نام</label>
+            <input id="first_name" name="first_name" type="text" required autocomplete="given-name" placeholder="مثلاً: علی">
+          </div>
+          <div style="flex:1">
+            <label for="last_name">نام خانوادگی</label>
+            <input id="last_name" name="last_name" type="text" required autocomplete="family-name" placeholder="مثلاً: رضایی">
+          </div>
+        </div>
+
+        <div class="row">
+          <div style="flex:1">
+            <label for="father_name">اسم پدر</label>
+            <input id="father_name" name="father_name" type="text" required placeholder="اسم پدر">
+          </div>
+
+          <div style="flex:1">
+            <label for="national_code">کد ملی</label>
+            <input id="national_code" name="national_code" type="tel" inputmode="numeric"
+                   required maxlength="10" minlength="10" pattern="\d{10}"
+                   placeholder="۱۰ رقم - فقط عدد"
+                   title="کد ملی باید دقیقاً ۱۰ رقم عدد باشد">
+          </div>
+        </div>
+
+        <div class="row">
+          <div style="flex:1">
+            <label for="user_name">نام کاربری</label>
+            <input id="user_name" name="user_name" type="text" required autocomplete="username" placeholder="نام کاربری شما">
+          </div>
+          <div style="flex:1">
+            <label for="pas">رمز</label>
+            <input id="pas" name="pas" type="password" required minlength="6" placeholder="حداقل ۶ کاراکتر">
+          </div>
+        </div>
+
+        <div class="note">با زدن ثبت نام، اطلاعات به صورت امن ارسال می‌شود.</div>
+
+        <div class="actions">
+          <button type="submit">ثبت نام</button>
+          <button type="reset" class="secondary">پاک کردن</button>
+        </div>
+
+        <div id="formError" class="error" aria-live="polite" style="display:none"></div>
+      </form>
+    </div>
+  </div>
+
+<script>
+  (function(){
+    const form = document.getElementById('regForm');
+    const national = document.getElementById('national_code');
+    const errBox = document.getElementById('formError');
+
+    // اجازه‌ی ورود فقط اعداد در فیلد کد ملی
+    national.addEventListener('input', function(e){
+      // پاک کردن هر کاراکتر غیر عدد
+      this.value = this.value.replace(/[^\d]/g, '').slice(0,10);
+    });
+
+    form.addEventListener('submit', function(e){
+      errBox.style.display = 'none';
+      errBox.textContent = '';
+
+      // HTML5 validity را بررسی می‌کنیم
+      if (!form.checkValidity()) {
+        e.preventDefault();
+        // پیغام سفارشی برای کد ملی
+        if (!national.checkValidity()) {
+          errBox.textContent = 'کد ملی باید دقیقاً ۱۰ رقم عدد باشد.';
+          errBox.style.display = 'block';
+          national.focus();
+          return;
+        }
+        // اگر فیلد دیگری مشکل داشت، مرورگر پیغام پیش‌فرض خواهد داد اما ما پیغام عمومی می‌گذاریم:
+        errBox.textContent = 'لطفاً همهٔ فیلدها را صحیح و کامل پر کنید.';
+        errBox.style.display = 'block';
+        return;
+      }
+
+      // در اینجا اجازه می‌دهیم فرم ارسال شود (به insert.php)
+    });
+  })();
+</script>
+</body>
+</html>
