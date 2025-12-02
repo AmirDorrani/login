@@ -7,6 +7,7 @@ $host = 'localhost';
 $dbname = 'student';
 $user = 'root';
 $pass = '';
+
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $user, $pass);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -14,13 +15,22 @@ try {
     die("خطا در اتصال به دیتابیس: " . $e->getMessage());
 }
 
-// گرفتن شناسه دانش‌آموز از URL
+// گرفتن id دانش‌آموز از URL
 if (!isset($_GET['id'])) {
     die("کاربر مشخص نشده است.");
 }
 $user_id = (int)$_GET['id'];
 
-// لیست دروس پیش‌فرض
+// گرفتن مشخصات دانش‌آموز
+$stmt = $pdo->prepare("SELECT id, f_name, l_name FROM stude WHERE id=?");
+$stmt->execute([$user_id]);
+$userData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$userData) {
+    die("دانش‌آموز یافت نشد.");
+}
+
+// دروس پیش‌فرض
 $lessons = ['فارسی','ریاضی','قرآن','دینی','تاریخ','هنر','ورزش'];
 
 $message = '';
@@ -34,14 +44,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (empty($name_dars)) {
             $message = "لطفاً نام درس را وارد کنید.";
         } else {
+            // بررسی وجود رکورد قبلی
             $stmtCheck = $pdo->prepare("SELECT id FROM studen WHERE user_id=? AND name_dars=?");
             $stmtCheck->execute([$user_id, $name_dars]);
             $exists = $stmtCheck->fetch();
 
             if ($exists) {
-                $stmtUpdate = $pdo->prepare("UPDATE studen SET score=? WHERE user_id=? AND name_dars=?");
-                $stmtUpdate->execute([$score, $user_id, $name_dars]);
+                // آپدیت نمره
+                $stmtUpdate = $pdo->prepare("UPDATE studen SET score=? WHERE id=?");
+                $stmtUpdate->execute([$score, $exists['id']]);
             } else {
+                // درج نمره جدید
                 $stmtInsert = $pdo->prepare("INSERT INTO studen (user_id, name_dars, score) VALUES (?,?,?)");
                 $stmtInsert->execute([$user_id, $name_dars, $score]);
             }
@@ -59,12 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ثبت نمره</title>
+<title>ثبت نمره - مشکی قرمز</title>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600&display=swap');
 
-/* ===== بدنه ===== */
 body {
     margin: 0;
     padding: 0;
@@ -73,10 +85,9 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
 }
 
-/* ===== کانتینر فرم ===== */
 .container {
     background: #1a1a1a;
     padding: 40px 35px;
@@ -93,15 +104,22 @@ body {
     100% { transform: translateY(-8px); }
 }
 
-/* ===== هدر ===== */
 h2 {
     color: #ff4d4d;
     font-size: 28px;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
     text-shadow: 0 0 10px #ff1a1a88, 0 0 20px #ff4d4d44;
 }
 
-/* ===== input و دکمه ===== */
+.user-info {
+    color: #fff;
+    background: #220000;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 0 15px #ff1a1aaa;
+}
+
 input, button {
     width: 100%;
     padding: 14px;
@@ -113,7 +131,6 @@ input, button {
     transition: all 0.3s ease;
 }
 
-/* ===== input درس ===== */
 input[list] {
     background: #222;
     color: #ff4d4d;
@@ -126,7 +143,6 @@ input[list]:focus {
     transform: scale(1.02);
 }
 
-/* ===== input نمره ===== */
 input[type=number] {
     background: #222;
     color: #ff4d4d;
@@ -139,7 +155,6 @@ input[type=number]:focus {
     transform: scale(1.02);
 }
 
-/* ===== دکمه ثبت ===== */
 button {
     background: linear-gradient(145deg, #ff1a1a, #b30000);
     color: #fff;
@@ -154,7 +169,6 @@ button:hover {
     transform: translateY(-2px) scale(1.02);
 }
 
-/* ===== پیام موفقیت یا خطا ===== */
 .message {
     margin-top: 18px;
     padding: 12px;
@@ -177,13 +191,17 @@ button:hover {
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }
 }
-
 </style>
 </head>
 <body>
 
 <div class="container">
-<h2> ثبت نمره  </h2>
+<h2>📝 ثبت نمره - مشکی قرمز</h2>
+
+<div class="user-info">
+نام: <?php echo htmlspecialchars($userData['f_name']); ?><br>
+نام خانوادگی: <?php echo htmlspecialchars($userData['l_name']); ?>
+</div>
 
 <form method="post">
 <input list="lessons" name="name_dars" placeholder="انتخاب یا تایپ درس" required>
