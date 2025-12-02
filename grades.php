@@ -34,17 +34,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (empty($name_dars)) {
             $message = "لطفاً نام درس را وارد کنید.";
         } else {
-            // بررسی وجود نمره قبلی برای همان دانش‌آموز و همان درس
             $stmtCheck = $pdo->prepare("SELECT id FROM studen WHERE user_id=? AND name_dars=?");
             $stmtCheck->execute([$user_id, $name_dars]);
             $exists = $stmtCheck->fetch();
 
             if ($exists) {
-                // بروزرسانی نمره
                 $stmtUpdate = $pdo->prepare("UPDATE studen SET score=? WHERE user_id=? AND name_dars=?");
                 $stmtUpdate->execute([$score, $user_id, $name_dars]);
             } else {
-                // ثبت نمره جدید
                 $stmtInsert = $pdo->prepare("INSERT INTO studen (user_id, name_dars, score) VALUES (?,?,?)");
                 $stmtInsert->execute([$user_id, $name_dars, $score]);
             }
@@ -52,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = "نمره برای درس {$name_dars} با موفقیت ثبت شد ✅";
         }
     } else {
-        $message = "لطفاً درس و نمره معتبر انتخاب کنید.";
+        $message = "لطفاً درس و نمره معتبر وارد کنید.";
     }
 }
 ?>
@@ -63,26 +60,132 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ثبت نمره</title>
+
 <style>
-body { font-family: 'Vazirmatn', sans-serif; background:#121212; color:#eee; display:flex; justify-content:center; align-items:center; height:100vh; margin:0;}
-.container { background:#222; padding:30px; border-radius:14px; width:350px; box-shadow:0 0 20px #4a7cff88; text-align:center;}
-h2 { color:#4a7cff; margin-bottom:15px;}
-input, select, button { width:100%; padding:10px; margin:10px 0; border-radius:10px; border:none; font-size:16px; }
-input, select { background:#111; color:#eee; box-shadow: inset 2px 2px 6px #1a1a1a, inset -2px -2px 6px #2a2a2a;}
-button { background:#4a7cff; color:#fff; cursor:pointer; transition:.3s; box-shadow:0 0 15px #4a7cff;}
-button:hover { background:#2a50c7; }
-.message { margin-top:10px; padding:10px; border-radius:8px; }
-.success { background:#004400; color:#0f0; box-shadow:0 0 15px #00ff66;}
-.error { background:#440000; color:#f00; box-shadow:0 0 15px #ff3333;}
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600&display=swap');
+
+/* ===== بدنه ===== */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Vazirmatn', sans-serif;
+    background: #111;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+/* ===== کانتینر فرم ===== */
+.container {
+    background: #1a1a1a;
+    padding: 40px 35px;
+    border-radius: 20px;
+    width: 400px;
+    box-shadow: 0 0 25px #ff1a1a99, 0 0 15px #ff4d4d55 inset;
+    text-align: center;
+    position: relative;
+    animation: float 3s ease-in-out infinite alternate;
+}
+
+@keyframes float {
+    0% { transform: translateY(0px); }
+    100% { transform: translateY(-8px); }
+}
+
+/* ===== هدر ===== */
+h2 {
+    color: #ff4d4d;
+    font-size: 28px;
+    margin-bottom: 30px;
+    text-shadow: 0 0 10px #ff1a1a88, 0 0 20px #ff4d4d44;
+}
+
+/* ===== input و دکمه ===== */
+input, button {
+    width: 100%;
+    padding: 14px;
+    margin: 12px 0;
+    border-radius: 12px;
+    border: none;
+    font-size: 16px;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+}
+
+/* ===== input درس ===== */
+input[list] {
+    background: #222;
+    color: #ff4d4d;
+    box-shadow: 0 0 8px #ff1a1a55, inset 0 0 5px #ff4d4d22;
+    text-align: center;
+}
+input[list]:focus {
+    outline: none;
+    box-shadow: 0 0 15px #ff1a1a, inset 0 0 5px #ff4d4d44;
+    transform: scale(1.02);
+}
+
+/* ===== input نمره ===== */
+input[type=number] {
+    background: #222;
+    color: #ff4d4d;
+    text-align: center;
+    box-shadow: 0 0 8px #ff1a1a55, inset 0 0 5px #ff4d4d22;
+}
+input[type=number]:focus {
+    outline: none;
+    box-shadow: 0 0 20px #ff1a1a, inset 0 0 5px #ff4d4d44;
+    transform: scale(1.02);
+}
+
+/* ===== دکمه ثبت ===== */
+button {
+    background: linear-gradient(145deg, #ff1a1a, #b30000);
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 0 20px #ff1a1aaa, inset 0 0 8px #ff4d4d33;
+    transition: all 0.3s ease;
+}
+button:hover {
+    background: linear-gradient(145deg, #b30000, #ff1a1a);
+    box-shadow: 0 0 35px #ff4d4dbb, inset 0 0 12px #ff1a1a55;
+    transform: translateY(-2px) scale(1.02);
+}
+
+/* ===== پیام موفقیت یا خطا ===== */
+.message {
+    margin-top: 18px;
+    padding: 12px;
+    border-radius: 14px;
+    font-weight: 600;
+    animation: fadeIn 0.6s;
+}
+.success {
+    background:#330000; 
+    color:#ff4d4d; 
+    box-shadow: 0 0 15px #ff4d4daa;
+}
+.error { 
+    background:#4d0000; 
+    color:#ff9999; 
+    box-shadow: 0 0 15px #ff6666; 
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 </style>
 </head>
 <body>
 
 <div class="container">
-<h2>ثبت نمره</h2>
+<h2> ثبت نمره  </h2>
 
 <form method="post">
-<!-- لیست انتخاب درس و امکان تایپ -->
 <input list="lessons" name="name_dars" placeholder="انتخاب یا تایپ درس" required>
 <datalist id="lessons">
 <?php foreach($lessons as $lesson): ?>
@@ -90,13 +193,7 @@ button:hover { background:#2a50c7; }
 <?php endforeach; ?>
 </datalist>
 
-<!-- انتخاب نمره -->
-<select name="score" required>
-<option value="">انتخاب نمره</option>
-<?php for($i=0;$i<=20;$i++): ?>
-    <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
-<?php endfor; ?>
-</select>
+<input type="number" name="score" min="0" max="20" placeholder="نمره (0 تا 20)" required>
 
 <button type="submit">ثبت نمره</button>
 </form>
