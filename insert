@@ -1,22 +1,23 @@
 
 <?php
-include 'conn.php';
-$x=$_POST["first_name"];
-$y=$_POST["last_name"];
-$s=$_POST["father_name"];
-$h=$_POST["user_name"];
+include 'conection.php';
+$x=$_POST["f_name"];
+$y=$_POST["l_name"];
+$s=$_POST["fa_name"];
+$h=$_POST["username"];
+$g=$_POST["n_code"];
 $f=$_POST["pas"];
 
 $servername="localhost";
 $username="root";
 $password="";
-$database="save";
-$conn= connect("localhost","root","","save");
-function ql($x , $y , $s , $h , $f,$conn)
+$database="student";
+$conn= connect("localhost","root","","student");
+function ql($x , $y , $s , $h ,$g, $f,$conn)
 {
- $q="INSERT INTO save_db2 (first_name, last_name, father_name, user_name, pas)
- VALUES ('$x' , '$y' , '$s' , '$h' , '$f')";
+ $q="INSERT INTO stude (f_name, l_name, fa_name, username, n_code , pas)
+ VALUES ('$x' , '$y' , '$s' , '$h' , '$g' , '$f')";
  mysqli_query($conn,$q);
 }
- ql($x, $y, $s , $h, $f,$conn);
+ ql($x, $y, $s , $h, $g ,$f,$conn);
 ?>
