@@ -15,271 +15,110 @@ try {
     die("خطا در اتصال به دیتابیس: " . $e->getMessage());
 }
 
-// تابع تبدیل میلادی به شمسی
-function gregorian_to_jalali($gy, $gm, $gd) {
-    $g_d_m = array(0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334);
-    if($gy > 1600) {
-        $jy = 979;
-        $gy -= 1600;
+// بررسی وجود ستون date_update
+$check_column = $pdo->prepare("SHOW COLUMNS FROM studen LIKE 'date_update'");
+$check_column->execute();
+if (!$check_column->fetch()) {
+    $pdo->exec("ALTER TABLE studen ADD COLUMN date_update DATETIME NULL");
+}
+
+// گرفتن id دانش‌آموز
+if (!isset($_GET['id'])) die("کاربر مشخص نشده است.");
+$user_id = (int)$_GET['id'];
+
+// مشخصات دانش‌آموز
+$stmt = $pdo->prepare("SELECT id, f_name, l_name FROM stude WHERE id=?");
+$stmt->execute([$user_id]);
+$userData = $stmt->fetch(PDO::FETCH_ASSOC);
+if (!$userData) die("دانش‌آموز یافت نشد.");
+
+// متغیرها
+$lessons = ['فارسی','ریاضی','قرآن','دینی','تاریخ','هنر','ورزش'];
+$message = '';
+$edit_mode = false;
+$edit_data = null;
+
+// گرفتن نمرات
+$stmt_scores = $pdo->prepare("SELECT id, name_dars, score, date_time, date_update FROM studen WHERE user_id=? ORDER BY id DESC");
+$stmt_scores->execute([$user_id]);
+$scores = $stmt_scores->fetchAll(PDO::FETCH_ASSOC);
+
+// حالت ویرایش
+if (isset($_GET['edit']) && !empty($_GET['edit']) && is_numeric($_GET['edit'])) {
+    $stmt_edit = $pdo->prepare("SELECT id, name_dars, score FROM studen WHERE id=? AND user_id=?");
+    $stmt_edit->execute([(int)$_GET['edit'], $user_id]);
+    $edit_data = $stmt_edit->fetch(PDO::FETCH_ASSOC);
+    if ($edit_data) $edit_mode = true;
+}
+
+// پردازش فرم
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['edit_id']) && !empty($_POST['edit_id'])) {
+        // ویرایش
+        if (isset($_POST['score']) && is_numeric($_POST['score'])) {
+            $score = (int)$_POST['score'];
+            $edit_id = (int)$_POST['edit_id'];
+            
+            if ($score < 0 || $score > 20) {
+                $message = "نمره باید بین 0 تا 20 باشد.";
+            } else {
+                $current_datetime = date('Y-m-d H:i:s');
+                $stmtUpdate = $pdo->prepare("UPDATE studen SET score=?, date_update=? WHERE id=? AND user_id=?");
+                $stmtUpdate->execute([$score, $current_datetime, $edit_id, $user_id]);
+                
+                if ($stmtUpdate->rowCount() > 0) {
+                    header("Location: ?id=" . $user_id . "&success=edited");
+                    exit();
+                } else {
+                    $message = "خطا در ویرایش نمره!";
+                }
+            }
+        }
     } else {
-        $jy = 0;
-        $gy -= 621;
-    }
-    $gy2 = ($gm > 2) ? ($gy + 1) : $gy;
-    $days = (365 * $gy) + ((int)(($gy2 + 3) / 4)) - ((int)(($gy2 + 99) / 100)) + ((int)(($gy2 + 399) / 400)) - 80 + $gd + $g_d_m[$gm - 1];
-    $jy += 33 * ((int)($days / 12053));
-    $days %= 12053;
-    $jy += 4 * ((int)($days / 1461));
-    $days %= 1461;
-    if($days > 365) {
-        $jy += (int)(($days - 1) / 365);
-        $days = ($days - 1) % 365;
-    }
-    $jm = ($days < 186) ? 1 + (int)($days / 31) : 7 + (int)(($days - 186) / 30);
-    $jd = 1 + (($days < 186) ? ($days % 31) : (($days - 186) % 30));
-    return array($jy, $jm, $jd);
-}
+        // ثبت جدید
+        if (isset($_POST['score'], $_POST['name_dars']) && is_numeric($_POST['score'])) {
+            $score = (int)$_POST['score'];
+            $name_dars = trim($_POST['name_dars']);
+            
+            if ($score < 0 || $score > 20) {
+                $message = "نمره باید بین 0 تا 20 باشد.";
+            } elseif (empty($name_dars)) {
+                $message = "لطفاً نام درس را وارد کنید.";
+            } else {
+                $current_datetime = date('Y-m-d H:i:s');
+                
+                $stmtCheck = $pdo->prepare("SELECT id FROM studen WHERE user_id=? AND name_dars=?");
+                $stmtCheck->execute([$user_id, $name_dars]);
+                $exists = $stmtCheck->fetch();
 
-// تابع تبدیل تاریخ میلادی به شمسی با فرمت
-function date_to_jalali($date, $format = 'Y/m/d H:i') {
-    $date_time = new DateTime($date);
-    $year = (int)$date_time->format('Y');
-    $month = (int)$date_time->format('m');
-    $day = (int)$date_time->format('d');
-    $hour = $date_time->format('H');
-    $minute = $date_time->format('i');
-    
-    list($jy, $jm, $jd) = gregorian_to_jalali($year, $month, $day);
-    
-    // نام ماه‌های شمسی
-    $jalali_months = [
-        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد',
-        4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
-        7 => 'مهر', 8 => 'آبان', 9 => 'آذر',
-        10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
-    ];
-    
-    $replacements = [
-        'Y' => str_pad($jy, 4, '0', STR_PAD_LEFT),
-        'm' => str_pad($jm, 2, '0', STR_PAD_LEFT),
-        'd' => str_pad($jd, 2, '0', STR_PAD_LEFT),
-        'H' => $hour,
-        'i' => $minute,
-        'M' => $jalali_months[$jm] ?? '',
-        'F' => $jalali_months[$jm] ?? '',
-    ];
-    
-    $result = $format;
-    foreach ($replacements as $key => $value) {
-        $result = str_replace($key, $value, $result);
-    }
-    
-    return $result;
-}
-
-// تبدیل تاریخ شمسی به میلادی برای جستجو
-function jalali_to_gregorian($jy, $jm, $jd) {
-    if($jy > 979) {
-        $gy = 1600;
-        $jy -= 979;
-    } else {
-        $gy = 621;
-    }
-    $days = (365 * $jy) + (((int)($jy / 33)) * 8) + ((int)((($jy % 33) + 3) / 4)) + 78 + $jd + (($jm < 7) ? ($jm - 1) * 31 : (($jm - 7) * 30) + 186);
-    $gy += 400 * ((int)($days / 146097));
-    $days %= 146097;
-    if($days > 36524) {
-        $gy += 100 * ((int)(--$days / 36524));
-        $days %= 36524;
-        if($days >= 365) $days++;
-    }
-    $gy += 4 * ((int)($days / 1461));
-    $days %= 1461;
-    if($days > 365) {
-        $gy += (int)(($days - 1) / 365);
-        $days = ($days - 1) % 365;
-    }
-    $gd = $days + 1;
-    $sal_a = array(0, 31, (($gy % 4 == 0 and $gy % 100 != 0) or ($gy % 400 == 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31);
-    for($gm = 0; $gm < 13 and $gd > $sal_a[$gm]; $gm++) $gd -= $sal_a[$gm];
-    return array($gy, $gm, $gd);
-}
-
-// --- درست کردن تاریخ پیش‌فرض ---
-// تاریخ امروز میلادی
-$today_gregorian = date('Y-m-d');
-// تاریخ 7 روز پیش میلادی
-$seven_days_ago_gregorian = date('Y-m-d', strtotime('-7 days'));
-
-// تبدیل به شمسی
-$today_jalali = date_to_jalali($today_gregorian, 'Y-m-d');
-$seven_days_ago = date_to_jalali($seven_days_ago_gregorian, 'Y-m-d');
-
-// --- دیباگ: ببینیم چه تاریخ‌هایی تولید میشه ---
-// echo "امروز میلادی: $today_gregorian<br>";
-// echo "امروز شمسی: $today_jalali<br>";
-// echo "7 روز قبل میلادی: $seven_days_ago_gregorian<br>";
-// echo "7 روز قبل شمسی: $seven_days_ago<br>";
-
-// گرفتن تاریخ از GET (با سیستم جدید تقویم شمسی)
-if (isset($_GET['search'])) {
-    // اگر فیلدهای میلادی ارسال شده‌اند (از تقویم جدید)
-    if (isset($_GET['start_date_gregorian'])) {
-        // تبدیل میلادی به شمسی برای نمایش
-        list($gy, $gm, $gd) = explode('-', $_GET['start_date_gregorian']);
-        list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-        $start_date = sprintf('%04d-%02d-%02d', $jy, $jm, $jd);
-    } else if (isset($_GET['start_date'])) {
-        // حالت قدیمی
-        $start_date = $_GET['start_date'];
-    } else {
-        $start_date = $seven_days_ago;
-    }
-    
-    if (isset($_GET['end_date_gregorian'])) {
-        // تبدیل میلادی به شمسی برای نمایش
-        list($gy, $gm, $gd) = explode('-', $_GET['end_date_gregorian']);
-        list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
-        $end_date = sprintf('%04d-%02d-%02d', $jy, $jm, $jd);
-    } else if (isset($_GET['end_date'])) {
-        // حالت قدیمی
-        $end_date = $_GET['end_date'];
-    } else {
-        $end_date = $today_jalali;
-    }
-} else {
-    // حالت پیش‌فرض
-    $start_date = $seven_days_ago;
-    $end_date = $today_jalali;
-}
-
-// --- تازه: چک کنیم که سال‌ها درست باشن ---
-// اگر سال کمتر از 1300 بود، یعنی تبدیل درست نیست
-list($start_year, $start_month, $start_day) = explode('-', $start_date);
-list($end_year, $end_month, $end_day) = explode('-', $end_date);
-
-// اگر سال‌ها کوچک‌تر از 1300 بودن، بیایم یه تاریخ شمسی درست تعریف کنیم
-// مثلاً امروز شمسی رو بصورت دستی حساب کنیم
-// تاریخ امروز: فرض کنیم 1403/10/15 باشه
-// برای تست: تاریخ امروز شمسی رو دستی میزاریم
-
-// اگر میخوای تاریخ دقیق امروز رو بگیری، میتونی از این تابع استفاده کنی:
-function get_current_jalali_date() {
-    // تاریخ امروز میلادی
-    $today = date('Y-m-d');
-    // تبدیل به شمسی
-    return date_to_jalali($today, 'Y-m-d');
-}
-
-function get_jalali_date_7days_ago() {
-    // تاریخ 7 روز قبل میلادی
-    $seven_days_ago = date('Y-m-d', strtotime('-7 days'));
-    // تبدیل به شمسی
-    return date_to_jalali($seven_days_ago, 'Y-m-d');
-}
-
-// تاریخ‌های درست رو حساب کنیم
-$correct_today_jalali = get_current_jalali_date();
-$correct_7days_ago = get_jalali_date_7days_ago();
-
-// اگر سال اولی کمتر از 1300 بود، از تاریخ‌های درست استفاده کنیم
-if ($start_year < 1300) {
-    $start_date = $correct_7days_ago;
-}
-if ($end_year < 1300) {
-    $end_date = $correct_today_jalali;
-}
-
-// دیباگ: ببینیم چه تاریخ‌هایی داریم
-// echo "start_date: $start_date<br>";
-// echo "end_date: $end_date<br>";
-
-$search_type = isset($_GET['search_type']) ? $_GET['search_type'] : 'all';
-
-// گرفتن اطلاعات ویرایش‌ها در بازه زمانی
-$results = [];
-if (isset($_GET['search'])) {
-    // تبدیل تاریخ شمسی به میلادی برای جستجو در دیتابیس
-    list($start_year, $start_month, $start_day) = explode('-', $start_date);
-    list($end_year, $end_month, $end_day) = explode('-', $end_date);
-    
-    $start_gregorian = jalali_to_gregorian($start_year, $start_month, $start_day);
-    $end_gregorian = jalali_to_gregorian($end_year, $end_month, $end_day);
-    
-    $start_datetime = sprintf('%04d-%02d-%02d 00:00:00', $start_gregorian[0], $start_gregorian[1], $start_gregorian[2]);
-    $end_datetime = sprintf('%04d-%02d-%02d 23:59:59', $end_gregorian[0], $end_gregorian[1], $end_gregorian[2]);
-    
-    if ($search_type == 'update' || $search_type == 'all') {
-        // ویرایش‌ها
-        $sql_update = "SELECT 
-            s.id, s.user_id, s.name_dars, s.score, s.date_update,
-            u.f_name, u.l_name
-            FROM studen s
-            JOIN stude u ON s.user_id = u.id
-            WHERE s.date_update BETWEEN ? AND ?
-            ORDER BY s.date_update DESC";
-        
-        $stmt_update = $pdo->prepare($sql_update);
-        $stmt_update->execute([$start_datetime, $end_datetime]);
-        $updates = $stmt_update->fetchAll(PDO::FETCH_ASSOC);
-        
-        foreach ($updates as $update) {
-            $update['type'] = 'ویرایش';
-            $update['date'] = $update['date_update'];
-            $results[] = $update;
+                if ($exists) {
+                    $stmtUpdate = $pdo->prepare("UPDATE studen SET score=?, date_update=? WHERE id=?");
+                    $stmtUpdate->execute([$score, $current_datetime, $exists['id']]);
+                    $message = "نمره برای درس {$name_dars} با موفقیت به‌روزرسانی شد ✅";
+                } else {
+                    $stmtInsert = $pdo->prepare("INSERT INTO studen (user_id, name_dars, score, date_time) VALUES (?,?,?,?)");
+                    $stmtInsert->execute([$user_id, $name_dars, $score, $current_datetime]);
+                    $message = "نمره برای درس {$name_dars} با موفقیت ثبت شد ✅";
+                }
+            }
         }
     }
-    
-    if ($search_type == 'create' || $search_type == 'all') {
-        // ثبت‌های جدید
-        $sql_create = "SELECT 
-            s.id, s.user_id, s.name_dars, s.score, s.date_time as date,
-            u.f_name, u.l_name
-            FROM studen s
-            JOIN stude u ON s.user_id = u.id
-            WHERE s.date_time BETWEEN ? AND ?
-            ORDER BY s.date_time DESC";
-        
-        $stmt_create = $pdo->prepare($sql_create);
-        $stmt_create->execute([$start_datetime, $end_datetime]);
-        $creates = $stmt_create->fetchAll(PDO::FETCH_ASSOC);
-        
-        foreach ($creates as $create) {
-            $create['type'] = 'ثبت جدید';
-            $results[] = $create;
-        }
-    }
-    
-    // مرتب‌سازی بر اساس تاریخ
-    usort($results, function($a, $b) {
-        return strtotime($b['date']) - strtotime($a['date']);
-    });
 }
 
-// آمار کلی
-$stats = [
-    'total' => count($results),
-    'updates' => 0,
-    'creates' => 0
-];
-
-foreach ($results as $item) {
-    if ($item['type'] == 'ویرایش') {
-        $stats['updates']++;
-    } else {
-        $stats['creates']++;
-    }
+// پیام موفقیت
+if (isset($_GET['success']) && $_GET['success'] == 'edited') {
+    $message = "نمره با موفقیت ویرایش شد ✅";
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📊 گزارش زمانی ویرایش‌ها</title>
-    <!-- اضافه کردن Persian Datepicker -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css">
+    <title>ثبت و ویرایش نمرات</title>
     <style>
+        /* استایل اصلی */
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap');
         
         :root {
@@ -290,11 +129,10 @@ foreach ($results as $item) {
             --warning: #f8961e;
             --dark: #1a1a2e;
             --light: #f8f9fa;
-            --gray: #6c757d;
             --gradient: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
             --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            --radius: 15px;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --radius: 12px;
+            --transition: all 0.3s ease;
         }
         
         * {
@@ -307,39 +145,33 @@ foreach ($results as $item) {
         body {
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             min-height: 100vh;
-            padding: 30px;
+            padding: 20px;
             color: var(--dark);
         }
         
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
-            animation: fadeIn 0.8s ease;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .header {
             background: white;
-            padding: 30px;
             border-radius: var(--radius);
             box-shadow: var(--shadow);
-            margin-bottom: 30px;
+            overflow: hidden;
+        }
+        
+        /* هدر */
+        .header {
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            padding: 25px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: 20px;
-            background: linear-gradient(to right, #ffffff, #f8f9fa);
-            border-left: 5px solid var(--primary);
         }
         
         .header h1 {
-            color: var(--primary);
-            font-size: 32px;
+            color: white;
+            font-size: 28px;
             font-weight: 700;
             display: flex;
             align-items: center;
@@ -354,8 +186,8 @@ foreach ($results as $item) {
         .btn {
             padding: 12px 25px;
             border: none;
-            border-radius: 10px;
-            font-size: 16px;
+            border-radius: 8px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
             transition: var(--transition);
@@ -363,46 +195,52 @@ foreach ($results as $item) {
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            text-align: center;
         }
         
-        .btn-primary {
-            background: var(--gradient);
+        .btn-report {
+            background: rgba(255, 255, 255, 0.2);
             color: white;
-            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.3);
         }
         
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(67, 97, 238, 0.4);
+        .btn-report:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
         }
         
-        .btn-outline {
-            background: transparent;
-            color: var(--primary);
-            border: 2px solid var(--primary);
-        }
-        
-        .btn-outline:hover {
-            background: var(--primary);
-            color: white;
-        }
-        
-        .filter-card {
+        /* بقیه استایل‌ها... */
+        .user-card {
+            padding: 30px;
             background: white;
-            padding: 35px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .user-info {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 25px;
             border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            margin-bottom: 30px;
-            animation: slideUp 0.6s ease;
+            border-right: 5px solid var(--primary);
         }
         
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
+        .user-info h3 {
+            color: var(--secondary);
+            font-size: 22px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
-        .filter-card h2 {
+        .user-info p {
+            color: var(--dark);
+            font-size: 16px;
+        }
+        
+        .form-section {
+            padding: 30px;
+        }
+        
+        .form-section h2 {
             color: var(--secondary);
             margin-bottom: 25px;
             font-size: 24px;
@@ -411,238 +249,178 @@ foreach ($results as $item) {
             gap: 10px;
         }
         
-        .filter-form {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 25px;
+        .grade-form {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: var(--radius);
+            margin-bottom: 25px;
         }
         
         .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
+            margin-bottom: 20px;
         }
         
         .form-group label {
+            display: block;
+            margin-bottom: 8px;
             font-weight: 600;
             color: var(--dark);
-            font-size: 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
         
-        .form-control {
-            padding: 14px 18px;
+        input[type="text"],
+        input[type="number"],
+        input[list] {
+            width: 100%;
+            padding: 14px;
             border: 2px solid #e0e0e0;
-            border-radius: 10px;
+            border-radius: 8px;
             font-size: 16px;
+            background: white;
             transition: var(--transition);
-            background: #f8f9fa;
-            font-family: 'Vazirmatn', sans-serif;
         }
         
-        .form-control:focus {
+        input:focus {
             outline: none;
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+        }
+        
+        .lesson-display {
             background: white;
+            padding: 14px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            font-weight: 600;
+            color: var(--secondary);
         }
         
-        /* استایل مخصوص input تاریخ */
-        .date-input {
-            cursor: pointer;
-            background: white url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%234361ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>') no-repeat left 15px center;
-            background-size: 20px;
-            padding-left: 45px;
-        }
-        
-        .radio-group {
+        .form-actions {
             display: flex;
-            gap: 25px;
-            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 25px;
         }
         
-        .radio-label {
+        .btn-save {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 14px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            flex: 1;
+        }
+        
+        .btn-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3);
+        }
+        
+        .btn-submit {
+            background: var(--gradient);
+            color: white;
+            padding: 16px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+        }
+        
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+            padding: 14px 25px;
+            border-radius: 8px;
+            text-decoration: none;
+            text-align: center;
+            transition: var(--transition);
+            flex: 0.5;
+        }
+        
+        .btn-cancel:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        
+        .message {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-weight: 600;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .success {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            color: #065f46;
+            border-right: 5px solid #10b981;
+        }
+        
+        .error {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            color: #991b1b;
+            border-right: 5px solid #ef4444;
+        }
+        
+        .scores-section {
+            padding: 30px;
+        }
+        
+        .scores-section h2 {
+            color: var(--secondary);
+            margin-bottom: 25px;
+            font-size: 24px;
             display: flex;
             align-items: center;
             gap: 10px;
-            cursor: pointer;
-            padding: 12px 20px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            transition: var(--transition);
-            border: 2px solid transparent;
-        }
-        
-        .radio-label:hover {
-            background: #e9ecef;
-        }
-        
-        .radio-label.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-        
-        .radio-label input {
-            display: none;
-        }
-        
-        .btn-search {
-            grid-column: 1 / -1;
-            background: var(--gradient);
-            color: white;
-            padding: 16px;
-            border: none;
-            border-radius: 10px;
-            font-size: 18px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--transition);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 12px;
-            margin-top: 10px;
-            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
-        }
-        
-        .btn-search:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(67, 97, 238, 0.4);
-        }
-        
-        .stats-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 25px;
-            margin-bottom: 30px;
-        }
-        
-        .stat-card {
-            background: white;
-            padding: 30px;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            transition: var(--transition);
-            animation: slideUp 0.6s ease 0.2s backwards;
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-        }
-        
-        .stat-icon {
-            width: 70px;
-            height: 70px;
-            border-radius: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-            color: white;
-        }
-        
-        .stat-icon.total { background: linear-gradient(135deg, #4361ee, #3a0ca3); }
-        .stat-icon.update { background: linear-gradient(135deg, #4cc9f0, #4895ef); }
-        .stat-icon.create { background: linear-gradient(135deg, #f72585, #b5179e); }
-        
-        .stat-info h3 {
-            font-size: 16px;
-            color: var(--gray);
-            margin-bottom: 8px;
-        }
-        
-        .stat-number {
-            font-size: 36px;
-            font-weight: 700;
-            color: var(--dark);
-        }
-        
-        .results-section {
-            background: white;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            overflow: hidden;
-            animation: slideUp 0.6s ease 0.4s backwards;
-        }
-        
-        .results-header {
-            padding: 25px 30px;
-            background: linear-gradient(to right, var(--primary), var(--secondary));
-            color: white;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .results-header h2 {
-            font-size: 22px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        
-        .results-count {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 6px 15px;
-            border-radius: 20px;
-            font-size: 15px;
-            font-weight: 600;
         }
         
         .table-container {
             overflow-x: auto;
-            padding: 20px;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
         }
         
-        .results-table {
+        .scores-table {
             width: 100%;
             border-collapse: collapse;
             min-width: 1000px;
         }
         
-        .results-table th {
-            background: #f8f9fa;
+        .scores-table th {
+            background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
+            color: white;
             padding: 18px 20px;
             text-align: right;
             font-weight: 600;
-            color: var(--dark);
-            border-bottom: 2px solid #e0e0e0;
             font-size: 15px;
         }
         
-        .results-table td {
-            padding: 18px 20px;
+        .scores-table td {
+            padding: 16px 20px;
             border-bottom: 1px solid #eee;
+            background: white;
             transition: var(--transition);
         }
         
-        .results-table tr:hover td {
+        .scores-table tr:hover td {
             background: #f8fafc;
-        }
-        
-        .type-badge {
-            padding: 6px 15px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            display: inline-block;
-        }
-        
-        .type-update {
-            background: #dbeafe;
-            color: #1d4ed8;
-        }
-        
-        .type-create {
-            background: #dcfce7;
-            color: #166534;
         }
         
         .score-badge {
@@ -656,243 +434,199 @@ foreach ($results as $item) {
             text-align: center;
         }
         
-        .student-name {
-            font-weight: 600;
-            color: var(--dark);
-        }
-        
         .datetime-cell {
-            font-family: 'Vazirmatn', monospace;
+            font-family: monospace;
             font-size: 14px;
-            color: var(--gray);
-            direction: ltr;
-            text-align: right;
+            color: #6c757d;
         }
         
-        .no-results {
-            text-align: center;
-            padding: 60px 30px;
-            color: var(--gray);
+        .datetime-cell.updated {
+            color: #059669;
         }
         
-        .no-results i {
-            font-size: 60px;
-            margin-bottom: 20px;
-            color: #e0e0e0;
+        .datetime-cell small {
+            display: block;
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 3px;
         }
         
-        .no-results h3 {
-            font-size: 22px;
-            margin-bottom: 10px;
-            color: var(--dark);
+        .no-edit {
+            color: #9ca3af;
+            font-style: italic;
+        }
+        
+        .btn-edit {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            transition: var(--transition);
+            display: inline-block;
+        }
+        
+        .btn-edit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
         }
         
         @media (max-width: 768px) {
             body {
-                padding: 15px;
+                padding: 10px;
             }
             
             .header {
                 flex-direction: column;
                 text-align: center;
-                padding: 25px;
+                padding: 20px;
             }
             
             .header h1 {
-                font-size: 26px;
+                font-size: 24px;
             }
             
-            .filter-card {
-                padding: 25px;
+            .user-card, .form-section, .scores-section {
+                padding: 20px;
             }
             
-            .stat-card {
+            .grade-form {
+                padding: 20px;
+            }
+            
+            .form-actions {
                 flex-direction: column;
-                text-align: center;
-                padding: 25px;
             }
             
-            .results-header {
-                flex-direction: column;
-                gap: 15px;
-                text-align: center;
+            .btn-cancel {
+                flex: 1;
             }
             
-            .table-container {
-                padding: 10px;
-            }
-            
-            .results-table th,
-            .results-table td {
+            .scores-table th,
+            .scores-table td {
                 padding: 12px 10px;
+                font-size: 14px;
             }
         }
     </style>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
+        <!-- هدر با دکمه گزارش -->
         <div class="header">
-            <h1>
-                <span>📊</span>
-                گزارش زمانی ویرایش‌های نمرات
-            </h1>
+            <h1>📝 سیستم ثبت نمرات</h1>
             <div class="nav-buttons">
-                <a href="grades.php?id=1" class="btn btn-outline">
-                    ← بازگشت به ثبت نمرات
+                <a href="time_report.php" class="btn btn-report">
+                    📊 گزارش زمانی ویرایش‌ها
                 </a>
-                <button onclick="window.print()" class="btn btn-primary">
-                    🖨️ چاپ گزارش
-                </button>
             </div>
         </div>
         
-        <div class="filter-card">
-            <h2><span>🔍</span> فیلتر جستجو</h2>
-            <form method="GET" class="filter-form" id="searchForm">
-                <!-- فیلدهای مخفی برای ذخیره تاریخ میلادی -->
-                <input type="hidden" id="start_date_gregorian" name="start_date_gregorian" 
-                       value="<?php 
-                           list($y, $m, $d) = explode('-', $start_date);
-                           list($gy, $gm, $gd) = jalali_to_gregorian($y, $m, $d);
-                           echo sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
-                       ?>">
-                <input type="hidden" id="end_date_gregorian" name="end_date_gregorian" 
-                       value="<?php 
-                           list($y, $m, $d) = explode('-', $end_date);
-                           list($gy, $gm, $gd) = jalali_to_gregorian($y, $m, $d);
-                           echo sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
-                       ?>">
-                
-                <div class="form-group">
-                    <label for="start_date_display"><span>📅</span> تاریخ شروع (شمسی):</label>
-                    <input type="text" id="start_date_display" 
-                           value="<?php echo $start_date; ?>" 
-                           class="form-control date-input" 
-                           placeholder="برای انتخاب تاریخ کلیک کنید" 
-                           readonly>
-                    <small style="color: var(--gray);">روی کادر کلیک کنید تا تقویم باز شود</small>
-                </div>
-                
-                <div class="form-group">
-                    <label for="end_date_display"><span>📅</span> تاریخ پایان (شمسی):</label>
-                    <input type="text" id="end_date_display" 
-                           value="<?php echo $end_date; ?>" 
-                           class="form-control date-input" 
-                           placeholder="برای انتخاب تاریخ کلیک کنید" 
-                           readonly>
-                    <small style="color: var(--gray);">روی کادر کلیک کنید تا تقویم باز شود</small>
-                </div>
-                
-                <div class="form-group">
-                    <label><span>📋</span> نوع رویداد:</label>
-                    <div class="radio-group">
-                        <label class="radio-label <?php echo $search_type == 'all' ? 'active' : ''; ?>">
-                            <input type="radio" name="search_type" value="all" 
-                                   <?php echo $search_type == 'all' ? 'checked' : ''; ?>>
-                            <span>📊 همه رویدادها</span>
-                        </label>
-                        <label class="radio-label <?php echo $search_type == 'update' ? 'active' : ''; ?>">
-                            <input type="radio" name="search_type" value="update" 
-                                   <?php echo $search_type == 'update' ? 'checked' : ''; ?>>
-                            <span>✏️ فقط ویرایش‌ها</span>
-                        </label>
-                        <label class="radio-label <?php echo $search_type == 'create' ? 'active' : ''; ?>">
-                            <input type="radio" name="search_type" value="create" 
-                                   <?php echo $search_type == 'create' ? 'checked' : ''; ?>>
-                            <span>➕ فقط ثبت‌های جدید</span>
-                        </label>
+        <div class="user-card">
+            <div class="user-info">
+                <h3>👨‍🎓 دانش‌آموز: <?php echo htmlspecialchars($userData['f_name'] . ' ' . $userData['l_name']); ?></h3>
+                <p>کد دانش‌آموزی: <?php echo $user_id; ?></p>
+            </div>
+        </div>
+        
+        <div class="form-section">
+            <h2><?php echo $edit_mode ? '✏️ ویرایش نمره' : '➕ ثبت نمره جدید'; ?></h2>
+            
+            <form method="post" class="grade-form">
+                <?php if ($edit_mode): ?>
+                    <input type="hidden" name="edit_id" value="<?php echo $edit_data['id']; ?>">
+                    <div class="form-group">
+                        <label>درس:</label>
+                        <div class="lesson-display">
+                            <?php echo htmlspecialchars($edit_data['name_dars']); ?>
+                        </div>
                     </div>
-                </div>
-                
-                <button type="submit" name="search" class="btn-search">
-                    <span>🔎</span>
-                    جستجو در بازه زمانی
-                </button>
+                    <div class="form-group">
+                        <label for="score">نمره جدید:</label>
+                        <input type="number" id="score" name="score" min="0" max="20" 
+                               value="<?php echo $edit_data['score']; ?>" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-save">
+                            <span>💾 ذخیره تغییرات</span>
+                        </button>
+                        <a href="?id=<?php echo $user_id; ?>" class="btn-cancel">
+                            ❌ لغو ویرایش
+                        </a>
+                    </div>
+                <?php else: ?>
+                    <div class="form-group">
+                        <label for="name_dars">نام درس:</label>
+                        <input list="lessons" id="name_dars" name="name_dars" 
+                               placeholder="انتخاب یا تایپ درس" required>
+                        <datalist id="lessons">
+                            <?php foreach($lessons as $lesson): ?>
+                                <option value="<?php echo $lesson; ?>">
+                            <?php endforeach; ?>
+                        </datalist>
+                    </div>
+                    <div class="form-group">
+                        <label for="score">نمره:</label>
+                        <input type="number" id="score" name="score" min="0" max="20" 
+                               placeholder="بین 0 تا 20" required>
+                    </div>
+                    <button type="submit" class="btn-submit">
+                        <span>✅ ثبت نمره</span>
+                    </button>
+                <?php endif; ?>
             </form>
+            
+            <?php if($message): ?>
+                <div class="message <?php echo strpos($message,'موفقیت')!==false || strpos($message,'ویرایش')!==false ? 'success':'error'; ?>">
+                    <?php echo htmlspecialchars($message); ?>
+                </div>
+            <?php endif; ?>
         </div>
         
-        <?php if (isset($_GET['search'])): ?>
-        <div class="stats-cards">
-            <div class="stat-card">
-                <div class="stat-icon total">
-                    📈
-                </div>
-                <div class="stat-info">
-                    <h3>تعداد کل رویدادها</h3>
-                    <div class="stat-number"><?php echo $stats['total']; ?></div>
-                </div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-icon update">
-                    ✏️
-                </div>
-                <div class="stat-info">
-                    <h3>ویرایش‌ها</h3>
-                    <div class="stat-number"><?php echo $stats['updates']; ?></div>
-                </div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-icon create">
-                    ➕
-                </div>
-                <div class="stat-info">
-                    <h3>ثبت‌های جدید</h3>
-                    <div class="stat-number"><?php echo $stats['creates']; ?></div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="results-section">
-            <div class="results-header">
-                <h2><span>📋</span> نتایج جستجو</h2>
-                <div class="results-count">
-                    <?php echo count($results); ?> مورد یافت شد
-                </div>
-            </div>
-            
-            <?php if (!empty($results)): ?>
+        <?php if (!empty($scores)): ?>
+            <div class="scores-section">
+                <h2>📊 نمرات ثبت شده</h2>
                 <div class="table-container">
-                    <table class="results-table">
+                    <table class="scores-table">
                         <thead>
                             <tr>
                                 <th>ردیف</th>
-                                <th>نوع رویداد</th>
-                                <th>دانش‌آموز</th>
-                                <th>کد دانش‌آموزی</th>
                                 <th>نام درس</th>
                                 <th>نمره</th>
-                                <th>تاریخ و زمان (شمسی)</th>
-                                <th>جزئیات</th>
+                                <th>تاریخ ثبت</th>
+                                <th>آخرین ویرایش</th>
+                                <th>عملیات</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($results as $index => $row): ?>
+                            <?php foreach($scores as $index => $score): ?>
                             <tr>
                                 <td><?php echo $index + 1; ?></td>
+                                <td><?php echo htmlspecialchars($score['name_dars']); ?></td>
+                                <td><span class="score-badge"><?php echo $score['score']; ?></span></td>
                                 <td>
-                                    <span class="type-badge <?php echo $row['type'] == 'ویرایش' ? 'type-update' : 'type-create'; ?>">
-                                        <?php echo $row['type']; ?>
-                                    </span>
-                                </td>
-                                <td class="student-name">
-                                    <?php echo htmlspecialchars($row['f_name'] . ' ' . $row['l_name']); ?>
-                                </td>
-                                <td><?php echo $row['user_id']; ?></td>
-                                <td><?php echo htmlspecialchars($row['name_dars']); ?></td>
-                                <td>
-                                    <span class="score-badge">
-                                        <?php echo $row['score']; ?>
-                                    </span>
-                                </td>
-                                <td class="datetime-cell">
-                                    <?php echo date_to_jalali($row['date'], 'Y/m/d H:i'); ?>
+                                    <div class="datetime-cell">
+                                        <?php echo date('Y/m/d H:i', strtotime($score['date_time'])); ?>
+                                        <small>اولین ثبت</small>
+                                    </div>
                                 </td>
                                 <td>
-                                    <a href="grades.php?id=<?php echo $row['user_id']; ?>" 
-                                       class="btn btn-outline" style="padding: 8px 15px; font-size: 14px;">
-                                        مشاهده جزئیات
+                                    <?php if(!empty($score['date_update'])): ?>
+                                        <div class="datetime-cell updated">
+                                            <?php echo date('Y/m/d H:i', strtotime($score['date_update'])); ?>
+                                            <small>آخرین ویرایش</small>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="no-edit">--</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <a href="?id=<?php echo $user_id; ?>&edit=<?php echo $score['id']; ?>" 
+                                       class="btn-edit">
+                                        ✏️ ویرایش
                                     </a>
                                 </td>
                             </tr>
@@ -900,163 +634,14 @@ foreach ($results as $item) {
                         </tbody>
                     </table>
                 </div>
-            <?php else: ?>
-                <div class="no-results">
-                    <div>🔍</div>
-                    <h3>هیچ موردی یافت نشد</h3>
-                    <p>در بازه زمانی انتخاب شده هیچ رویدادی ثبت نشده است.</p>
-                </div>
-            <?php endif; ?>
-        </div>
+            </div>
         <?php else: ?>
-        <div class="no-results" style="background: white; border-radius: var(--radius); padding: 60px; text-align: center;">
-            <div style="font-size: 80px; margin-bottom: 20px; color: #4361ee;">📊</div>
-            <h3 style="color: #3a0ca3; margin-bottom: 15px;">گزارش زمانی ویرایش‌ها</h3>
-            <p style="color: #6c757d; max-width: 600px; margin: 0 auto 30px; line-height: 1.6;">
-                برای مشاهده گزارش ویرایش‌ها و ثبت‌های نمرات، لطفاً بازه زمانی مورد نظر را انتخاب کرده و دکمه جستجو را بزنید.
-            </p>
-            <p style="color: #f8961e; font-weight: 600;">
-                ⏱️ گزارش‌دهی بر اساس تاریخ و ساعت شمسی انجام می‌شود
-            </p>
-        </div>
+            <div style="color:#6c757d; text-align:center; padding:40px; background:#f8f9fa; margin:30px; border-radius:var(--radius);">
+                <div style="font-size: 60px; margin-bottom: 20px;">📝</div>
+                <h3 style="color:#4361ee; margin-bottom:10px;">هنوز نمره‌ای ثبت نشده است</h3>
+                <p>اولین نمره را برای این دانش‌آموز ثبت کنید.</p>
+            </div>
         <?php endif; ?>
     </div>
-    
-    <!-- اضافه کردن اسکریپت‌های jQuery و Persian Datepicker -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/persian-date@1.1.0/dist/persian-date.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
-    
-    <script>
-    // تابع تبدیل شمسی به میلادی (برای ارسال به سرور)
-    function jalaliToGregorianForServer(jy, jm, jd) {
-        if(jy > 979) {
-            gy = 1600;
-            jy -= 979;
-        } else {
-            gy = 621;
-        }
-        days = (365 * jy) + (parseInt(jy / 33) * 8) + parseInt(((jy % 33) + 3) / 4) + 78 + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186);
-        gy += 400 * parseInt(days / 146097);
-        days %= 146097;
-        if(days > 36524) {
-            gy += 100 * parseInt(--days / 36524);
-            days %= 36524;
-            if(days >= 365) days++;
-        }
-        gy += 4 * parseInt(days / 1461);
-        days %= 1461;
-        if(days > 365) {
-            gy += parseInt((days - 1) / 365);
-            days = (days - 1) % 365;
-        }
-        gd = days + 1;
-        sal_a = [0, 31, ((gy % 4 == 0 && gy % 100 != 0) || (gy % 400 == 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-        for(gm = 0; gm < 13 && gd > sal_a[gm]; gm++) gd -= sal_a[gm];
-        
-        // فرمت کردن به YYYY-MM-DD
-        return gy + '-' + ('0' + gm).slice(-2) + '-' + ('0' + gd).slice(-2);
-    }
-
-    $(document).ready(function() {
-        // فعال‌سازی تقویم برای تاریخ شروع
-        $("#start_date_display").persianDatepicker({
-            format: 'YYYY-MM-DD',
-            autoClose: true,
-            initialValue: false,
-            observer: true,
-            calendar: {
-                persian: {
-                    locale: 'fa',
-                    showHint: true
-                }
-            },
-            onSelect: function (unixDate) {
-                // تبدیل تاریخ انتخاب شده به رشته
-                var selectedDate = $(this).val();
-                $("#start_date_display").val(selectedDate);
-                
-                // تبدیل به میلادی و ذخیره در فیلد مخفی
-                var parts = selectedDate.split('-');
-                var gregorianDate = jalaliToGregorianForServer(
-                    parseInt(parts[0]), 
-                    parseInt(parts[1]), 
-                    parseInt(parts[2])
-                );
-                $("#start_date_gregorian").val(gregorianDate);
-            }
-        });
-        
-        // فعال‌سازی تقویم برای تاریخ پایان
-        $("#end_date_display").persianDatepicker({
-            format: 'YYYY-MM-DD',
-            autoClose: true,
-            initialValue: false,
-            observer: true,
-            calendar: {
-                persian: {
-                    locale: 'fa',
-                    showHint: true
-                }
-            },
-            onSelect: function (unixDate) {
-                // تبدیل تاریخ انتخاب شده به رشته
-                var selectedDate = $(this).val();
-                $("#end_date_display").val(selectedDate);
-                
-                // تبدیل به میلادی و ذخیره در فیلد مخفی
-                var parts = selectedDate.split('-');
-                var gregorianDate = jalaliToGregorianForServer(
-                    parseInt(parts[0]), 
-                    parseInt(parts[1]), 
-                    parseInt(parts[2])
-                );
-                $("#end_date_gregorian").val(gregorianDate);
-            }
-        });
-        
-        // فعال‌سازی radio buttons
-        $('.radio-label').click(function() {
-            $('.radio-label').removeClass('active');
-            $(this).addClass('active');
-            $(this).find('input').prop('checked', true);
-        });
-        
-        // اعتبارسنجی فرم
-        $("#searchForm").submit(function(e) {
-            var startDate = $("#start_date_display").val();
-            var endDate = $("#end_date_display").val();
-            
-            if (!startDate || !endDate) {
-                e.preventDefault();
-                alert("⚠️ لطفاً هر دو تاریخ را انتخاب کنید.");
-                return false;
-            }
-            
-            // تبدیل تاریخ‌ها به عدد برای مقایسه
-            var startNum = parseInt(startDate.replace(/-/g, ''));
-            var endNum = parseInt(endDate.replace(/-/g, ''));
-            
-            if (startNum > endNum) {
-                e.preventDefault();
-                alert("⚠️ تاریخ شروع نمی‌تواند بعد از تاریخ پایان باشد!");
-                return false;
-            }
-        });
-        
-        // نمایش تاریخ امروز
-        var jalaliToday = "<?php echo $end_date; ?>";
-        $("#end_date_display").attr('placeholder', 'امروز: ' + jalaliToday);
-        
-        // تنظیم محدودیت‌های تاریخ در تقویم
-        // می‌توانیم سال را بین 1300 تا 1500 محدود کنیم
-        var currentYear = parseInt(jalaliToday.split('-')[0]);
-        var minYear = 1300;
-        var maxYear = currentYear + 10; // 10 سال بعد
-        
-        console.log("سال جاری شمسی: " + currentYear);
-        console.log("محدوده سال: " + minYear + " تا " + maxYear);
-    });
-    </script>
 </body>
 </html>
