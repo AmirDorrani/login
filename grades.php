@@ -44,22 +44,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (empty($name_dars)) {
             $message = "لطفاً نام درس را وارد کنید.";
         } else {
+            // ایجاد تاریخ و زمان فعلی
+            $current_datetime = date('Y-m-d H:i:s'); // فرمت: 2024-01-15 14:30:45
+            
             // بررسی وجود رکورد قبلی
             $stmtCheck = $pdo->prepare("SELECT id FROM studen WHERE user_id=? AND name_dars=?");
             $stmtCheck->execute([$user_id, $name_dars]);
             $exists = $stmtCheck->fetch();
 
             if ($exists) {
-                // آپدیت نمره
-                $stmtUpdate = $pdo->prepare("UPDATE studen SET score=? WHERE id=?");
-                $stmtUpdate->execute([$score, $exists['id']]);
+                // آپدیت نمره و تاریخ/زمان
+                $stmtUpdate = $pdo->prepare("UPDATE studen SET score=?, date_time=? WHERE id=?");
+                $stmtUpdate->execute([$score, $current_datetime, $exists['id']]);
+                $message = "نمره برای درس {$name_dars} با موفقیت به‌روزرسانی شد ✅";
             } else {
-                // درج نمره جدید
-                $stmtInsert = $pdo->prepare("INSERT INTO studen (user_id, name_dars, score) VALUES (?,?,?)");
-                $stmtInsert->execute([$user_id, $name_dars, $score]);
+                // درج نمره جدید با تاریخ/زمان
+                $stmtInsert = $pdo->prepare("INSERT INTO studen (user_id, name_dars, score, date_time) VALUES (?,?,?,?)");
+                $stmtInsert->execute([$user_id, $name_dars, $score, $current_datetime]);
+                $message = "نمره برای درس {$name_dars} با موفقیت ثبت شد ✅";
             }
-
-            $message = "نمره برای درس {$name_dars} با موفقیت ثبت شد ✅";
         }
     } else {
         $message = "لطفاً درس و نمره معتبر وارد کنید.";
