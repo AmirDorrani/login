@@ -15,16 +15,199 @@ try {
     die("خطا در اتصال به دیتابیس: " . $e->getMessage());
 }
 
-// تاریخ پیش‌فرض
-$start_date = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d', strtotime('-7 days'));
-$end_date = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
+// تابع تبدیل میلادی به شمسی
+function gregorian_to_jalali($gy, $gm, $gd) {
+    $g_d_m = array(0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334);
+    if($gy > 1600) {
+        $jy = 979;
+        $gy -= 1600;
+    } else {
+        $jy = 0;
+        $gy -= 621;
+    }
+    $gy2 = ($gm > 2) ? ($gy + 1) : $gy;
+    $days = (365 * $gy) + ((int)(($gy2 + 3) / 4)) - ((int)(($gy2 + 99) / 100)) + ((int)(($gy2 + 399) / 400)) - 80 + $gd + $g_d_m[$gm - 1];
+    $jy += 33 * ((int)($days / 12053));
+    $days %= 12053;
+    $jy += 4 * ((int)($days / 1461));
+    $days %= 1461;
+    if($days > 365) {
+        $jy += (int)(($days - 1) / 365);
+        $days = ($days - 1) % 365;
+    }
+    $jm = ($days < 186) ? 1 + (int)($days / 31) : 7 + (int)(($days - 186) / 30);
+    $jd = 1 + (($days < 186) ? ($days % 31) : (($days - 186) % 30));
+    return array($jy, $jm, $jd);
+}
+
+// تابع تبدیل تاریخ میلادی به شمسی با فرمت
+function date_to_jalali($date, $format = 'Y/m/d H:i') {
+    $date_time = new DateTime($date);
+    $year = (int)$date_time->format('Y');
+    $month = (int)$date_time->format('m');
+    $day = (int)$date_time->format('d');
+    $hour = $date_time->format('H');
+    $minute = $date_time->format('i');
+    
+    list($jy, $jm, $jd) = gregorian_to_jalali($year, $month, $day);
+    
+    // نام ماه‌های شمسی
+    $jalali_months = [
+        1 => 'فروردین', 2 => 'اردیبهشت', 3 => 'خرداد',
+        4 => 'تیر', 5 => 'مرداد', 6 => 'شهریور',
+        7 => 'مهر', 8 => 'آبان', 9 => 'آذر',
+        10 => 'دی', 11 => 'بهمن', 12 => 'اسفند'
+    ];
+    
+    $replacements = [
+        'Y' => str_pad($jy, 4, '0', STR_PAD_LEFT),
+        'm' => str_pad($jm, 2, '0', STR_PAD_LEFT),
+        'd' => str_pad($jd, 2, '0', STR_PAD_LEFT),
+        'H' => $hour,
+        'i' => $minute,
+        'M' => $jalali_months[$jm] ?? '',
+        'F' => $jalali_months[$jm] ?? '',
+    ];
+    
+    $result = $format;
+    foreach ($replacements as $key => $value) {
+        $result = str_replace($key, $value, $result);
+    }
+    
+    return $result;
+}
+
+// تبدیل تاریخ شمسی به میلادی برای جستجو
+function jalali_to_gregorian($jy, $jm, $jd) {
+    if($jy > 979) {
+        $gy = 1600;
+        $jy -= 979;
+    } else {
+        $gy = 621;
+    }
+    $days = (365 * $jy) + (((int)($jy / 33)) * 8) + ((int)((($jy % 33) + 3) / 4)) + 78 + $jd + (($jm < 7) ? ($jm - 1) * 31 : (($jm - 7) * 30) + 186);
+    $gy += 400 * ((int)($days / 146097));
+    $days %= 146097;
+    if($days > 36524) {
+        $gy += 100 * ((int)(--$days / 36524));
+        $days %= 36524;
+        if($days >= 365) $days++;
+    }
+    $gy += 4 * ((int)($days / 1461));
+    $days %= 1461;
+    if($days > 365) {
+        $gy += (int)(($days - 1) / 365);
+        $days = ($days - 1) % 365;
+    }
+    $gd = $days + 1;
+    $sal_a = array(0, 31, (($gy % 4 == 0 and $gy % 100 != 0) or ($gy % 400 == 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31);
+    for($gm = 0; $gm < 13 and $gd > $sal_a[$gm]; $gm++) $gd -= $sal_a[$gm];
+    return array($gy, $gm, $gd);
+}
+
+// --- درست کردن تاریخ پیش‌فرض ---
+// تاریخ امروز میلادی
+$today_gregorian = date('Y-m-d');
+// تاریخ 7 روز پیش میلادی
+$seven_days_ago_gregorian = date('Y-m-d', strtotime('-7 days'));
+
+// تبدیل به شمسی
+$today_jalali = date_to_jalali($today_gregorian, 'Y-m-d');
+$seven_days_ago = date_to_jalali($seven_days_ago_gregorian, 'Y-m-d');
+
+// --- دیباگ: ببینیم چه تاریخ‌هایی تولید میشه ---
+// echo "امروز میلادی: $today_gregorian<br>";
+// echo "امروز شمسی: $today_jalali<br>";
+// echo "7 روز قبل میلادی: $seven_days_ago_gregorian<br>";
+// echo "7 روز قبل شمسی: $seven_days_ago<br>";
+
+// گرفتن تاریخ از GET (با سیستم جدید تقویم شمسی)
+if (isset($_GET['search'])) {
+    // اگر فیلدهای میلادی ارسال شده‌اند (از تقویم جدید)
+    if (isset($_GET['start_date_gregorian'])) {
+        // تبدیل میلادی به شمسی برای نمایش
+        list($gy, $gm, $gd) = explode('-', $_GET['start_date_gregorian']);
+        list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+        $start_date = sprintf('%04d-%02d-%02d', $jy, $jm, $jd);
+    } else if (isset($_GET['start_date'])) {
+        // حالت قدیمی
+        $start_date = $_GET['start_date'];
+    } else {
+        $start_date = $seven_days_ago;
+    }
+    
+    if (isset($_GET['end_date_gregorian'])) {
+        // تبدیل میلادی به شمسی برای نمایش
+        list($gy, $gm, $gd) = explode('-', $_GET['end_date_gregorian']);
+        list($jy, $jm, $jd) = gregorian_to_jalali($gy, $gm, $gd);
+        $end_date = sprintf('%04d-%02d-%02d', $jy, $jm, $jd);
+    } else if (isset($_GET['end_date'])) {
+        // حالت قدیمی
+        $end_date = $_GET['end_date'];
+    } else {
+        $end_date = $today_jalali;
+    }
+} else {
+    // حالت پیش‌فرض
+    $start_date = $seven_days_ago;
+    $end_date = $today_jalali;
+}
+
+// --- تازه: چک کنیم که سال‌ها درست باشن ---
+// اگر سال کمتر از 1300 بود، یعنی تبدیل درست نیست
+list($start_year, $start_month, $start_day) = explode('-', $start_date);
+list($end_year, $end_month, $end_day) = explode('-', $end_date);
+
+// اگر سال‌ها کوچک‌تر از 1300 بودن، بیایم یه تاریخ شمسی درست تعریف کنیم
+// مثلاً امروز شمسی رو بصورت دستی حساب کنیم
+// تاریخ امروز: فرض کنیم 1403/10/15 باشه
+// برای تست: تاریخ امروز شمسی رو دستی میزاریم
+
+// اگر میخوای تاریخ دقیق امروز رو بگیری، میتونی از این تابع استفاده کنی:
+function get_current_jalali_date() {
+    // تاریخ امروز میلادی
+    $today = date('Y-m-d');
+    // تبدیل به شمسی
+    return date_to_jalali($today, 'Y-m-d');
+}
+
+function get_jalali_date_7days_ago() {
+    // تاریخ 7 روز قبل میلادی
+    $seven_days_ago = date('Y-m-d', strtotime('-7 days'));
+    // تبدیل به شمسی
+    return date_to_jalali($seven_days_ago, 'Y-m-d');
+}
+
+// تاریخ‌های درست رو حساب کنیم
+$correct_today_jalali = get_current_jalali_date();
+$correct_7days_ago = get_jalali_date_7days_ago();
+
+// اگر سال اولی کمتر از 1300 بود، از تاریخ‌های درست استفاده کنیم
+if ($start_year < 1300) {
+    $start_date = $correct_7days_ago;
+}
+if ($end_year < 1300) {
+    $end_date = $correct_today_jalali;
+}
+
+// دیباگ: ببینیم چه تاریخ‌هایی داریم
+// echo "start_date: $start_date<br>";
+// echo "end_date: $end_date<br>";
+
 $search_type = isset($_GET['search_type']) ? $_GET['search_type'] : 'all';
 
 // گرفتن اطلاعات ویرایش‌ها در بازه زمانی
 $results = [];
 if (isset($_GET['search'])) {
-    $start_datetime = $start_date . ' 00:00:00';
-    $end_datetime = $end_date . ' 23:59:59';
+    // تبدیل تاریخ شمسی به میلادی برای جستجو در دیتابیس
+    list($start_year, $start_month, $start_day) = explode('-', $start_date);
+    list($end_year, $end_month, $end_day) = explode('-', $end_date);
+    
+    $start_gregorian = jalali_to_gregorian($start_year, $start_month, $start_day);
+    $end_gregorian = jalali_to_gregorian($end_year, $end_month, $end_day);
+    
+    $start_datetime = sprintf('%04d-%02d-%02d 00:00:00', $start_gregorian[0], $start_gregorian[1], $start_gregorian[2]);
+    $end_datetime = sprintf('%04d-%02d-%02d 23:59:59', $end_gregorian[0], $end_gregorian[1], $end_gregorian[2]);
     
     if ($search_type == 'update' || $search_type == 'all') {
         // ویرایش‌ها
@@ -94,6 +277,8 @@ foreach ($results as $item) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📊 گزارش زمانی ویرایش‌ها</title>
+    <!-- اضافه کردن Persian Datepicker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap');
         
@@ -159,10 +344,6 @@ foreach ($results as $item) {
             display: flex;
             align-items: center;
             gap: 15px;
-        }
-        
-        .header h1 i {
-            font-size: 36px;
         }
         
         .nav-buttons {
@@ -258,6 +439,7 @@ foreach ($results as $item) {
             font-size: 16px;
             transition: var(--transition);
             background: #f8f9fa;
+            font-family: 'Vazirmatn', sans-serif;
         }
         
         .form-control:focus {
@@ -265,6 +447,14 @@ foreach ($results as $item) {
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
             background: white;
+        }
+        
+        /* استایل مخصوص input تاریخ */
+        .date-input {
+            cursor: pointer;
+            background: white url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%234361ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>') no-repeat left 15px center;
+            background-size: 20px;
+            padding-left: 45px;
         }
         
         .radio-group {
@@ -472,9 +662,11 @@ foreach ($results as $item) {
         }
         
         .datetime-cell {
-            font-family: monospace;
+            font-family: 'Vazirmatn', monospace;
             font-size: 14px;
             color: var(--gray);
+            direction: ltr;
+            text-align: right;
         }
         
         .no-results {
@@ -556,17 +748,39 @@ foreach ($results as $item) {
         
         <div class="filter-card">
             <h2><span>🔍</span> فیلتر جستجو</h2>
-            <form method="GET" class="filter-form">
+            <form method="GET" class="filter-form" id="searchForm">
+                <!-- فیلدهای مخفی برای ذخیره تاریخ میلادی -->
+                <input type="hidden" id="start_date_gregorian" name="start_date_gregorian" 
+                       value="<?php 
+                           list($y, $m, $d) = explode('-', $start_date);
+                           list($gy, $gm, $gd) = jalali_to_gregorian($y, $m, $d);
+                           echo sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
+                       ?>">
+                <input type="hidden" id="end_date_gregorian" name="end_date_gregorian" 
+                       value="<?php 
+                           list($y, $m, $d) = explode('-', $end_date);
+                           list($gy, $gm, $gd) = jalali_to_gregorian($y, $m, $d);
+                           echo sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
+                       ?>">
+                
                 <div class="form-group">
-                    <label for="start_date"><span>📅</span> تاریخ شروع:</label>
-                    <input type="date" id="start_date" name="start_date" 
-                           value="<?php echo $start_date; ?>" class="form-control">
+                    <label for="start_date_display"><span>📅</span> تاریخ شروع (شمسی):</label>
+                    <input type="text" id="start_date_display" 
+                           value="<?php echo $start_date; ?>" 
+                           class="form-control date-input" 
+                           placeholder="برای انتخاب تاریخ کلیک کنید" 
+                           readonly>
+                    <small style="color: var(--gray);">روی کادر کلیک کنید تا تقویم باز شود</small>
                 </div>
                 
                 <div class="form-group">
-                    <label for="end_date"><span>📅</span> تاریخ پایان:</label>
-                    <input type="date" id="end_date" name="end_date" 
-                           value="<?php echo $end_date; ?>" class="form-control">
+                    <label for="end_date_display"><span>📅</span> تاریخ پایان (شمسی):</label>
+                    <input type="text" id="end_date_display" 
+                           value="<?php echo $end_date; ?>" 
+                           class="form-control date-input" 
+                           placeholder="برای انتخاب تاریخ کلیک کنید" 
+                           readonly>
+                    <small style="color: var(--gray);">روی کادر کلیک کنید تا تقویم باز شود</small>
                 </div>
                 
                 <div class="form-group">
@@ -649,7 +863,7 @@ foreach ($results as $item) {
                                 <th>کد دانش‌آموزی</th>
                                 <th>نام درس</th>
                                 <th>نمره</th>
-                                <th>تاریخ و زمان</th>
+                                <th>تاریخ و زمان (شمسی)</th>
                                 <th>جزئیات</th>
                             </tr>
                         </thead>
@@ -673,7 +887,7 @@ foreach ($results as $item) {
                                     </span>
                                 </td>
                                 <td class="datetime-cell">
-                                    <?php echo date('Y/m/d H:i', strtotime($row['date'])); ?>
+                                    <?php echo date_to_jalali($row['date'], 'Y/m/d H:i'); ?>
                                 </td>
                                 <td>
                                     <a href="grades.php?id=<?php echo $row['user_id']; ?>" 
@@ -702,36 +916,147 @@ foreach ($results as $item) {
                 برای مشاهده گزارش ویرایش‌ها و ثبت‌های نمرات، لطفاً بازه زمانی مورد نظر را انتخاب کرده و دکمه جستجو را بزنید.
             </p>
             <p style="color: #f8961e; font-weight: 600;">
-                ⏱️ گزارش‌دهی بر اساس تاریخ و ساعت دقیق انجام می‌شود
+                ⏱️ گزارش‌دهی بر اساس تاریخ و ساعت شمسی انجام می‌شود
             </p>
         </div>
         <?php endif; ?>
     </div>
     
+    <!-- اضافه کردن اسکریپت‌های jQuery و Persian Datepicker -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/persian-date@1.1.0/dist/persian-date.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
+    
     <script>
-        // فعال‌سازی radio buttons
-        document.querySelectorAll('.radio-label').forEach(label => {
-            label.addEventListener('click', function() {
-                document.querySelectorAll('.radio-label').forEach(l => l.classList.remove('active'));
-                this.classList.add('active');
-                this.querySelector('input').checked = true;
-            });
+    // تابع تبدیل شمسی به میلادی (برای ارسال به سرور)
+    function jalaliToGregorianForServer(jy, jm, jd) {
+        if(jy > 979) {
+            gy = 1600;
+            jy -= 979;
+        } else {
+            gy = 621;
+        }
+        days = (365 * jy) + (parseInt(jy / 33) * 8) + parseInt(((jy % 33) + 3) / 4) + 78 + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186);
+        gy += 400 * parseInt(days / 146097);
+        days %= 146097;
+        if(days > 36524) {
+            gy += 100 * parseInt(--days / 36524);
+            days %= 36524;
+            if(days >= 365) days++;
+        }
+        gy += 4 * parseInt(days / 1461);
+        days %= 1461;
+        if(days > 365) {
+            gy += parseInt((days - 1) / 365);
+            days = (days - 1) % 365;
+        }
+        gd = days + 1;
+        sal_a = [0, 31, ((gy % 4 == 0 && gy % 100 != 0) || (gy % 400 == 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        for(gm = 0; gm < 13 && gd > sal_a[gm]; gm++) gd -= sal_a[gm];
+        
+        // فرمت کردن به YYYY-MM-DD
+        return gy + '-' + ('0' + gm).slice(-2) + '-' + ('0' + gd).slice(-2);
+    }
+
+    $(document).ready(function() {
+        // فعال‌سازی تقویم برای تاریخ شروع
+        $("#start_date_display").persianDatepicker({
+            format: 'YYYY-MM-DD',
+            autoClose: true,
+            initialValue: false,
+            observer: true,
+            calendar: {
+                persian: {
+                    locale: 'fa',
+                    showHint: true
+                }
+            },
+            onSelect: function (unixDate) {
+                // تبدیل تاریخ انتخاب شده به رشته
+                var selectedDate = $(this).val();
+                $("#start_date_display").val(selectedDate);
+                
+                // تبدیل به میلادی و ذخیره در فیلد مخفی
+                var parts = selectedDate.split('-');
+                var gregorianDate = jalaliToGregorianForServer(
+                    parseInt(parts[0]), 
+                    parseInt(parts[1]), 
+                    parseInt(parts[2])
+                );
+                $("#start_date_gregorian").val(gregorianDate);
+            }
         });
         
-        // تاریخ پیش‌فرض امروز برای تاریخ پایان
-        document.getElementById('end_date').max = new Date().toISOString().split('T')[0];
+        // فعال‌سازی تقویم برای تاریخ پایان
+        $("#end_date_display").persianDatepicker({
+            format: 'YYYY-MM-DD',
+            autoClose: true,
+            initialValue: false,
+            observer: true,
+            calendar: {
+                persian: {
+                    locale: 'fa',
+                    showHint: true
+                }
+            },
+            onSelect: function (unixDate) {
+                // تبدیل تاریخ انتخاب شده به رشته
+                var selectedDate = $(this).val();
+                $("#end_date_display").val(selectedDate);
+                
+                // تبدیل به میلادی و ذخیره در فیلد مخفی
+                var parts = selectedDate.split('-');
+                var gregorianDate = jalaliToGregorianForServer(
+                    parseInt(parts[0]), 
+                    parseInt(parts[1]), 
+                    parseInt(parts[2])
+                );
+                $("#end_date_gregorian").val(gregorianDate);
+            }
+        });
         
-        // اعتبارسنجی تاریخ
-        document.querySelector('form').addEventListener('submit', function(e) {
-            const startDate = new Date(document.getElementById('start_date').value);
-            const endDate = new Date(document.getElementById('end_date').value);
+        // فعال‌سازی radio buttons
+        $('.radio-label').click(function() {
+            $('.radio-label').removeClass('active');
+            $(this).addClass('active');
+            $(this).find('input').prop('checked', true);
+        });
+        
+        // اعتبارسنجی فرم
+        $("#searchForm").submit(function(e) {
+            var startDate = $("#start_date_display").val();
+            var endDate = $("#end_date_display").val();
             
-            if (startDate > endDate) {
+            if (!startDate || !endDate) {
                 e.preventDefault();
-                alert('⚠️ تاریخ شروع نمی‌تواند بعد از تاریخ پایان باشد!');
+                alert("⚠️ لطفاً هر دو تاریخ را انتخاب کنید.");
+                return false;
+            }
+            
+            // تبدیل تاریخ‌ها به عدد برای مقایسه
+            var startNum = parseInt(startDate.replace(/-/g, ''));
+            var endNum = parseInt(endDate.replace(/-/g, ''));
+            
+            if (startNum > endNum) {
+                e.preventDefault();
+                alert("⚠️ تاریخ شروع نمی‌تواند بعد از تاریخ پایان باشد!");
                 return false;
             }
         });
+        
+        // نمایش تاریخ امروز
+        var jalaliToday = "<?php echo $end_date; ?>";
+        $("#end_date_display").attr('placeholder', 'امروز: ' + jalaliToday);
+        
+        // تنظیم محدودیت‌های تاریخ در تقویم
+        // می‌توانیم سال را بین 1300 تا 1500 محدود کنیم
+        var currentYear = parseInt(jalaliToday.split('-')[0]);
+        var minYear = 1300;
+        var maxYear = currentYear + 10; // 10 سال بعد
+        
+        console.log("سال جاری شمسی: " + currentYear);
+        console.log("محدوده سال: " + minYear + " تا " + maxYear);
+    });
     </script>
 </body>
 </html>
