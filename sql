@@ -1,4 +1,3 @@
--- جدول کاربران
 CREATE TABLE IF NOT EXISTS stude (
     id INT AUTO_INCREMENT PRIMARY KEY,
     f_name VARCHAR(100) NOT NULL,
@@ -9,7 +8,6 @@ CREATE TABLE IF NOT EXISTS stude (
     pas VARCHAR(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- جدول نمرات
 CREATE TABLE IF NOT EXISTS studen (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -19,7 +17,6 @@ CREATE TABLE IF NOT EXISTS studen (
     FOREIGN KEY (user_id) REFERENCES stude(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- در صورت نیاز، دروس پیش‌فرض می‌توانند بعدا با INSERT اضافه شوند:
 INSERT INTO studen (user_id, name_dars, score) VALUES
 (1, 'فارسی', 0),
 (1, 'ریاضی', 0),
