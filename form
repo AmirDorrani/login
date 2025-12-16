@@ -1,308 +1,657 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>فرم ثبت نام - Real Madrid</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ثبت نام</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Vazirmatn', sans-serif;
+        }
 
-  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600&display=swap" rel="stylesheet">
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
 
-  <style>
-  :root {
-    --bg-dark: #0c0c0c;
-    --bg-card: rgba(20,20,20,0.85);
-    --accent: #ffffff;
-    --accent-dark: #bbbbbb;
-    --radius: 16px;
-  }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+            padding: 40px 30px;
+            animation: fadeIn 0.8s ease;
+        }
 
-  body {
-    margin: 0;
-    height: 100vh;
-    font-family: "Vazirmatn", sans-serif;
-    background: linear-gradient(145deg, #0c0c0c, #1a1a1a);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
-  }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-  body::before {
-    content: "";
-    position: absolute;
-    width: 200%;
-    height: 200%;
-    background: url('https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg') no-repeat center;
-    background-size: 25%;
-    opacity: 0.05;
-    animation: bgRotate 30s linear infinite;
-    z-index: 0;
-  }
+        .logo {
+            text-align: center;
+            margin-bottom: 25px;
+        }
 
-  @keyframes bgRotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
+        .logo i {
+            font-size: 50px;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
 
-  .card {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    max-width: 520px;
-    padding: 34px;
-    border-radius: var(--radius);
-    background: var(--bg-card);
-    backdrop-filter: blur(12px);
-    box-shadow:
-      0 8px 25px rgba(0,0,0,0.7),
-      0 0 30px rgba(255,255,255,0.05) inset;
-    animation: fadeUp 0.8s ease forwards;
-    opacity: 0;
-    transform: translateY(20px);
-  }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+            font-weight: 700;
+        }
 
-  @keyframes fadeUp {
-    to { opacity: 1; transform: translateY(0); }
-  }
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 15px;
+        }
 
-  h1 {
-    margin: 0 0 10px;
-    font-size: 26px;
-    color: var(--accent);
-    text-shadow: 0 0 6px rgba(255,255,255,0.5);
-  }
+        .form-group {
+            margin-bottom: 20px;
+        }
 
-  p.lead {
-    font-size: 14px;
-    color: var(--accent-dark);
-    margin-bottom: 26px;
-  }
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+        }
 
-  form .row {
-    display: flex;
-    gap: 15px;
-    margin-bottom: 16px;
-  }
+        .required::after {
+            content: " *";
+            color: #ff4757;
+        }
 
-  @media (max-width:520px) { .row { flex-direction: column; } }
+        .row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
 
-  label {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--accent);
-  }
+        @media (max-width: 480px) {
+            .row {
+                flex-direction: column;
+                gap: 20px;
+            }
+        }
 
-  input[type="text"],
-  input[type="password"],
-  input[type="tel"] {
-    width: 100%;
-    padding: 12px 14px;
-    font-size: 14px;
-    border-radius: 14px;
-    border: none;
-    background: #111;
-    color: #eee;
-    box-shadow:
-      inset 2px 2px 6px rgba(255,255,255,0.05),
-      inset -2px -2px 6px rgba(0,0,0,0.6);
-    outline: none;
-    transition: all 0.3s ease;
-  }
+        .col {
+            flex: 1;
+        }
 
-  input:focus {
-    box-shadow:
-      0 0 8px rgba(255,255,255,0.4),
-      inset 1px 1px 3px rgba(255,255,255,0.1),
-      inset -1px -1px 3px rgba(0,0,0,0.6);
-    transform: scale(1.02);
-  }
+        input[type="text"],
+        input[type="password"],
+        input[type="tel"] {
+            width: 100%;
+            padding: 15px;
+            font-size: 15px;
+            border: 2px solid #e1e5ee;
+            border-radius: 12px;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            outline: none;
+            color: #333;
+        }
 
-  .note {
-    font-size: 12px;
-    color: #aaa;
-    margin-top: 6px;
-  }
+        input:focus {
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.15);
+        }
 
-  .actions {
-    display: flex;
-    gap: 12px;
-    margin-top: 20px;
-  }
+        .validation-message {
+            font-size: 13px;
+            margin-top: 6px;
+            min-height: 18px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
 
-  button {
-    flex: 1;
-    padding: 12px 0;
-    border: none;
-    border-radius: 14px;
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--accent);
-    background: #111;
-    box-shadow: 0 4px 10px rgba(74,124,255,0.3);
-    cursor: pointer;
-    overflow: hidden;
-    position: relative;
-    transition: 0.3s ease;
-  }
+        .validation-message.error {
+            color: #ff4757;
+        }
 
-  button::before {
-    content: "";
-    position: absolute;
-    width: 120%;
-    height: 200%;
-    top: -80%;
-    left: -10%;
-    background: rgba(255,255,255,0.05);
-    transform: rotate(25deg);
-    transition: 0.5s;
-  }
+        .validation-message.success {
+            color: #2ed573;
+        }
 
-  button:hover::before {
-    top: -20%;
-    left: -5%;
-  }
+        .password-strength {
+            height: 6px;
+            background: #e1e5ee;
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
 
-  button:hover {
-    transform: translateY(-3px);
-    background: linear-gradient(135deg, #222, #111);
-    box-shadow: 0 0 15px rgba(255,255,255,0.3);
-  }
+        .strength-bar {
+            height: 100%;
+            width: 0%;
+            border-radius: 3px;
+            transition: all 0.3s ease;
+        }
 
-  button.secondary {
-    background: #222;
-    color: #ccc;
-    box-shadow: none;
-  }
+        .cookie-section {
+            background: #f0f7ff;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 25px 0;
+            border: 1px dashed #667eea;
+            display: none;
+        }
 
-  button.secondary:hover {
-    background: #333;
-    color: #fff;
-  }
+        .cookie-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            color: #333;
+        }
 
-  .error, .success {
-    padding: 12px 14px;
-    border-radius: 12px;
-    margin-top: 14px;
-    font-size: 13px;
-    display: none;
-    animation: fadeIn 0.4s ease forwards;
-  }
+        .cookie-header i {
+            color: #667eea;
+        }
 
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+        .cookie-text {
+            font-size: 14px;
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
 
-  .error {
-    background: #330000;
-    color: #ff5555;
-    box-shadow: inset 2px 2px 6px rgba(255,0,0,0.1);
-  }
+        .cookie-options {
+            display: flex;
+            gap: 10px;
+        }
 
-  .success {
-    background: #003300;
-    color: #00ff88;
-    box-shadow: inset 2px 2px 6px rgba(0,255,128,0.1);
-  }
-  </style>
+        .cookie-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .cookie-btn.accept {
+            background: #667eea;
+            color: white;
+        }
+
+        .cookie-btn.accept:hover {
+            background: #5a6fd8;
+        }
+
+        .cookie-btn.reject {
+            background: white;
+            color: #666;
+            border: 2px solid #e1e5ee;
+        }
+
+        .cookie-btn.reject:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 16px;
+            border-radius: 12px;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #666;
+            border: 2px solid #e1e5ee;
+        }
+
+        .btn-secondary:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 20px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .message.error {
+            background: #ffeaea;
+            color: #ff4757;
+            border-right: 4px solid #ff4757;
+        }
+
+        .message.success {
+            background: #eaffea;
+            color: #2ed573;
+            border-right: 4px solid #2ed573;
+        }
+
+        .form-footer {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #e1e5ee;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .form-footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
-
 <body>
-  <div class="card" role="main">
-    <h1>فرم ثبت نام</h1>
-    <p class="lead">لطفاً تمام فیلدها را تکمیل کنید. کد ملی باید دقیقاً ۱۰ رقم باشد.</p>
-
-    <form id="regForm" action="insert.php" method="POST" novalidate>
-      <div class="row">
-        <div style="flex:1">
-          <label for="f_name">نام</label>
-          <input id="f_name" name="f_name" type="text" required placeholder="مثلاً: علی">
+    <div class="container">
+        <div class="logo">
+            <i class="fas fa-user-plus"></i>
         </div>
-        <div style="flex:1">
-          <label for="l_name">نام خانوادگی</label>
-          <input id="l_name" name="l_name" type="text" required placeholder="مثلاً: رضایی">
-        </div>
-      </div>
+        
+        <h1>ایجاد حساب کاربری</h1>
+        <p class="subtitle">لطفاً اطلاعات خود را با دقت وارد کنید</p>
+        
 
-      <div class="row">
-        <div style="flex:1">
-          <label for="fa_name">اسم پدر</label>
-          <input id="fa_name" name="fa_name" type="text" required placeholder="اسم پدر">
-        </div>
-        <div style="flex:1">
-          <label for="n_code">کد ملی</label>
-          <input id="n_code" name="n_code" type="tel" inputmode="numeric"
-                required maxlength="10" minlength="10" pattern="\d{10}"
-                placeholder="۱۰ رقم - فقط عدد">
-        </div>
-      </div>
+        
+        <form id="registerForm" action="process_register.php" method="POST">
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="firstName" class="required">نام</label>
+                        <input type="text" id="firstName" name="f_name" 
+                               placeholder="نام خود را وارد کنید" required>
+                        <div class="validation-message" id="firstNameMessage"></div>
+                    </div>
+                </div>
+                
+                <div class="col">
+                    <div class="form-group">
+                        <label for="lastName" class="required">نام خانوادگی</label>
+                        <input type="text" id="lastName" name="l_name" 
+                               placeholder="نام خانوادگی خود را وارد کنید" required>
+                        <div class="validation-message" id="lastNameMessage"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="fatherName" class="required">نام پدر</label>
+                        <input type="text" id="fatherName" name="fa_name" 
+                               placeholder="نام پدر خود را وارد کنید" required>
+                        <div class="validation-message" id="fatherNameMessage"></div>
+                    </div>
+                </div>
+                
+                <div class="col">
+                    <div class="form-group">
+                        <label for="nationalCode" class="required">کد ملی</label>
+                        <input type="tel" id="nationalCode" name="n_code" 
+                               maxlength="10" pattern="\d{10}"
+                               placeholder="۱۰ رقم کد ملی" required>
+                        <div class="validation-message" id="nationalCodeMessage"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="username" class="required">نام کاربری</label>
+                <input type="text" id="username" name="username" 
+                       placeholder="نام کاربری دلخواه" required minlength="4">
+                <div class="validation-message" id="usernameMessage"></div>
+            </div>
+            
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="password" class="required">رمز عبور</label>
+                        <input type="password" id="password" name="pas" 
+                               placeholder="رمز عبور" required minlength="6">
+                        <div class="password-strength">
+                            <div class="strength-bar" id="passwordStrength"></div>
+                        </div>
+                        <div class="validation-message" id="passwordMessage"></div>
+                    </div>
+                </div>
+                
+                <div class="col">
+                    <div class="form-group">
+                        <label for="confirmPassword" class="required">تکرار رمز عبور</label>
+                        <input type="password" id="confirmPassword" name="confirm_pas" 
+                               placeholder="تکرار رمز عبور" required minlength="6">
+                        <div class="validation-message" id="confirmPasswordMessage"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- بخش کوکی برای ذخیره پسورد -->
+            <div class="cookie-section" id="cookieSection">
+                <div class="cookie-header">
+                    <i class="fas fa-cookie-bite"></i>
+                    <span>ذخیره رمز عبور</span>
+                </div>
+                <p class="cookie-text">
+                    آیا می‌خواهید رمز عبور شما در این دستگاه ذخیره شود؟ این کار باعث می‌شود در دفعات بعدی سریع‌تر وارد شوید.
+                </p>
+                <div class="cookie-options">
+                    <button type="button" class="cookie-btn accept" id="savePassword">بله، ذخیره شود</button>
+                    <button type="button" class="cookie-btn reject" id="dontSave">خیر، ذخیره نشود</button>
+                </div>
+            </div>
+            
+            <!-- پیام‌های خطا و موفقیت -->
+            <div class="message error" id="errorMessage">
+                <i class="fas fa-exclamation-circle"></i>
+                <span id="errorText"></span>
+            </div>
+            
+            <!-- فیلد مخفی برای کوکی -->
+            <input type="hidden" id="savePasswordChoice" name="save_password" value="no">
+            
+            <!-- دکمه‌های فرم -->
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-user-plus"></i>
+                    ثبت نام
+                </button>
+                <button type="reset" class="btn btn-secondary">
+                    <i class="fas fa-redo"></i>
+                    پاک کردن
+                </button>
+            </div>
+            
+            <div class="form-footer">
+                حساب دارید؟ <a href="login.php">وارد شوید</a>
+            </div>
+        </form>
+    </div>
 
-      <div class="row">
-        <div style="flex:1">
-          <label for="username">نام کاربری</label>
-          <input id="username" name="username" type="text" required placeholder="نام کاربری شما">
-        </div>
-      </div>
-
-      <div class="row">
-        <div style="flex:1">
-          <label for="pas">رمز عبور</label>
-          <input id="pas" name="pas" type="password" required minlength="6" placeholder="حداقل ۶ کاراکتر">
-        </div>
-        <div style="flex:1">
-          <label for="confirm_pas">تأیید رمز عبور</label>
-          <input id="confirm_pas" name="confirm_pas" type="password" required minlength="6" placeholder="تکرار رمز عبور">
-        </div>
-      </div>
-
-      <div class="note">با زدن «ثبت نام»، اطلاعات به صورت امن ارسال می‌شود.</div>
-
-      <div class="actions">
-        <button type="submit">ثبت نام</button>
-        <button type="reset" class="secondary">پاک کردن</button>
-      </div>
-
-      <div id="formError" class="error"></div>
-      <div id="formSuccess" class="success">ثبت نام با موفقیت انجام شد ✅</div>
-    </form>
-  </div>
-
-  <script>
-  (function(){
-    const form = document.getElementById('regForm');
-    const national = document.getElementById('n_code');
-    const pass = document.getElementById('pas');
-    const confirmPass = document.getElementById('confirm_pas');
-    const errBox = document.getElementById('formError');
-    const successBox = document.getElementById('formSuccess');
-
-    national.addEventListener('input', function(){
-      this.value = this.value.replace(/[^\d]/g, '').slice(0,10);
-    });
-
-    form.addEventListener('submit', function(e){
-      errBox.style.display = 'none';
-      errBox.textContent = '';
-      successBox.style.display = 'none';
-
-      if (!form.checkValidity()) {
-        e.preventDefault();
-        errBox.textContent = 'لطفاً تمام فیلدها را به درستی پر کنید.';
-        errBox.style.display = 'block';
-        return;
-      }
-
-      if (pass.value !== confirmPass.value) {
-        e.preventDefault();
-        errBox.textContent = 'رمز عبور و تکرار آن مطابقت ندارند.';
-        errBox.style.display = 'block';
-        confirmPass.focus();
-        return;
-      }
-
-      successBox.style.display = 'block';
-    });
-  })();
-  </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('registerForm');
+            const cookieSection = document.getElementById('cookieSection');
+            const savePasswordBtn = document.getElementById('savePassword');
+            const dontSaveBtn = document.getElementById('dontSave');
+            const savePasswordChoiceInput = document.getElementById('savePasswordChoice');
+            const errorMessage = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+            const passwordStrength = document.getElementById('passwordStrength');
+            
+            let cookieChoiceMade = false;
+            
+            // تابع ذخیره کوکی
+            function setCookie(name, value, days) {
+                const date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                const expires = "expires=" + date.toUTCString();
+                document.cookie = name + "=" + encodeURIComponent(value) + ";" + expires + ";path=/";
+                console.log(`Cookie set: ${name}=${value}`);
+            }
+            
+            // تابع دریافت کوکی
+            function getCookie(name) {
+                const nameEQ = name + "=";
+                const ca = document.cookie.split(';');
+                for(let i = 0; i < ca.length; i++) {
+                    let c = ca[i].trim();
+                    if (c.indexOf(nameEQ) === 0) {
+                        return decodeURIComponent(c.substring(nameEQ.length));
+                    }
+                }
+                return null;
+            }
+            
+            // اعتبارسنجی فیلدها
+            function validateField(field) {
+                const value = field.value.trim();
+                const fieldId = field.id;
+                const messageElement = document.getElementById(fieldId + 'Message');
+                
+                messageElement.textContent = '';
+                messageElement.className = 'validation-message';
+                
+                if (field.hasAttribute('required') && value === '') {
+                    showValidation(messageElement, 'این فیلد الزامی است', false);
+                    return false;
+                }
+                
+                // اعتبارسنجی اختصاصی هر فیلد
+                switch(fieldId) {
+                    case 'nationalCode':
+                        if (!/^\d{10}$/.test(value)) {
+                            showValidation(messageElement, 'کد ملی باید ۱۰ رقم باشد', false);
+                            return false;
+                        }
+                        break;
+                        
+                    case 'password':
+                        if (value.length < 6) {
+                            showValidation(messageElement, 'رمز عبور باید حداقل ۶ کاراکتر باشد', false);
+                            return false;
+                        }
+                        updatePasswordStrength(value);
+                        break;
+                        
+                    case 'confirmPassword':
+                        const password = document.getElementById('password').value;
+                        if (value !== password) {
+                            showValidation(messageElement, 'رمز عبورها مطابقت ندارند', false);
+                            return false;
+                        }
+                        break;
+                        
+                    case 'username':
+                        if (value.length < 4) {
+                            showValidation(messageElement, 'نام کاربری باید حداقل ۴ کاراکتر باشد', false);
+                            return false;
+                        }
+                        break;
+                }
+                
+                if (value !== '') {
+                    showValidation(messageElement, '✓', true);
+                }
+                return true;
+            }
+            
+            // نمایش پیام اعتبارسنجی
+            function showValidation(element, message, isSuccess) {
+                element.textContent = message;
+                element.classList.add(isSuccess ? 'success' : 'error');
+            }
+            
+            // بررسی قدرت رمز عبور
+            function updatePasswordStrength(password) {
+                let strength = 0;
+                
+                if (password.length >= 6) strength += 30;
+                if (password.length >= 8) strength += 20;
+                if (/[A-Z]/.test(password)) strength += 20;
+                if (/[0-9]/.test(password)) strength += 20;
+                if (/[^A-Za-z0-9]/.test(password)) strength += 10;
+                
+                passwordStrength.style.width = strength + '%';
+                
+                if (strength < 50) {
+                    passwordStrength.style.backgroundColor = '#ff4757';
+                } else if (strength < 80) {
+                    passwordStrength.style.backgroundColor = '#ffa502';
+                } else {
+                    passwordStrength.style.backgroundColor = '#2ed573';
+                }
+            }
+            
+            // اعتبارسنجی هنگام تایپ
+            document.querySelectorAll('input').forEach(input => {
+                input.addEventListener('blur', function() {
+                    validateField(this);
+                    
+                    if (this.id === 'password') {
+                        validateField(document.getElementById('confirmPassword'));
+                    }
+                });
+                
+                input.addEventListener('input', function() {
+                    if (this.id === 'nationalCode') {
+                        this.value = this.value.replace(/\D/g, '').slice(0, 10);
+                    }
+                    
+                    if (this.id === 'password') {
+                        updatePasswordStrength(this.value);
+                        validateField(document.getElementById('confirmPassword'));
+                    }
+                });
+            });
+            
+            // مدیریت انتخاب ذخیره رمز عبور
+            savePasswordBtn.addEventListener('click', function() {
+                savePasswordChoiceInput.value = 'yes';
+                cookieChoiceMade = true;
+                cookieSection.style.display = 'none';
+                setCookie('password_save_choice', 'accepted', 30);
+                console.log('User chose to save password');
+            });
+            
+            dontSaveBtn.addEventListener('click', function() {
+                savePasswordChoiceInput.value = 'no';
+                cookieChoiceMade = true;
+                cookieSection.style.display = 'none';
+                setCookie('password_save_choice', 'rejected', 30);
+                console.log('User chose NOT to save password');
+            });
+            
+            // ارسال فرم
+            form.addEventListener('submit', function(e) {
+                // اعتبارسنجی همه فیلدها
+                let isValid = true;
+                const requiredInputs = form.querySelectorAll('input[required]');
+                let firstInvalidField = null;
+                
+                requiredInputs.forEach(input => {
+                    if (!validateField(input)) {
+                        isValid = false;
+                        if (!firstInvalidField) {
+                            firstInvalidField = input;
+                        }
+                    }
+                });
+                
+                // بررسی مطابقت رمز عبورها
+                const password = document.getElementById('password').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+                
+                if (password !== confirmPassword) {
+                    showValidation(
+                        document.getElementById('confirmPasswordMessage'),
+                        'رمز عبورها مطابقت ندارند',
+                        false
+                    );
+                    isValid = false;
+                    if (!firstInvalidField) {
+                        firstInvalidField = document.getElementById('confirmPassword');
+                    }
+                }
+                
+                // بررسی انتخاب کوکی
+                if (!cookieChoiceMade) {
+                    const previousChoice = getCookie('password_save_choice');
+                    if (!previousChoice) {
+                        e.preventDefault();
+                        errorText.textContent = 'لطفاً درباره ذخیره رمز عبور تصمیم بگیرید';
+                        errorMessage.style.display = 'flex';
+                        cookieSection.style.display = 'block';
+                        cookieSection.scrollIntoView({ behavior: 'smooth' });
+                        return;
+                    } else {
+                        if (previousChoice === 'accepted') {
+                            savePasswordChoiceInput.value = 'yes';
+                        } else {
+                            savePasswordChoiceInput.value = 'no';
+                        }
+                    }
+                }
+                
+                if (!isValid) {
+                    e.preventDefault();
+                    errorText.textContent = 'لطفاً خطاهای فرم را برطرف کنید';
+                    errorMessage.style.display = 'flex';
+                    if (firstInvalidField) {
+                        firstInvalidField.focus();
+                    }
+                }
+            });
+            
+            // بررسی اولیه کوکی
+            const previousChoice = getCookie('password_save_choice');
+            if (previousChoice === 'accepted' || previousChoice === 'rejected') {
+                cookieSection.style.display = 'none';
+                cookieChoiceMade = true;
+                if (previousChoice === 'accepted') {
+                    savePasswordChoiceInput.value = 'yes';
+                } else {
+                    savePasswordChoiceInput.value = 'no';
+                }
+            } else {
+                cookieSection.style.display = 'block';
+            }
+        });
+    </script>
 </body>
 </html>
